@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-from NeuralNetworks import CNN_small
+from NeuralNetworks import CNNsmall
 
 import torchvision
 
@@ -15,6 +14,8 @@ import time
 import os
 import pickle
 
+flg_batchsize = 128
+
 
 
 def train_Net(Net, N_epoch, criterion, optimizer):
@@ -24,6 +25,7 @@ def train_Net(Net, N_epoch, criterion, optimizer):
     print('Start Training')
     for epoch in range(N_epoch):
         start_time_epoch = time.time()
+        N_seen = 0
         running_loss = 0
         for i, data in enumerate(train_loader, start=0):
             inputs, labels = data
@@ -36,10 +38,13 @@ def train_Net(Net, N_epoch, criterion, optimizer):
             loss.backward()
             optimizer.step()
 
+            N_seen += flg_batchsize
+
             running_loss += loss.item()
-            if (i + 1) % 2500 == 0:
+            if N_seen >= train_set.__len__() // 5:
                 print('[%d, %5d] loss: %.3f' %
-                      (epoch + 1, i + 1, running_loss / 2500))
+                      (epoch + 1, N_seen, running_loss / N_seen))
+                N_seen -= train_set.__len__() // 5
                 running_loss = 0
         time_epoch[epoch] = time.time() - start_time_epoch
         time_estimate = (N_epoch - (epoch + 1)) * np.mean(time_epoch[time_epoch.nonzero()])
@@ -67,48 +72,6 @@ def test_Net(Net):
 
 
 
-class CNN(nn.Module):
-
-    def __init__(self, inp_shape):
-        super(CNN, self).__init__()
-
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5)
-        self.pool1 = nn.MaxPool2d(kernel_size=2)
-
-        self.conv2 = nn.Conv2d(in_channels=6, out_channels=16, kernel_size=5)
-        self.pool2 = nn.MaxPool2d(kernel_size=2)
-
-        self.num_flat_features = self._get_num_flat_features(inp_shape)
-
-        self.fc1 = nn.Linear(in_features=self.num_flat_features, out_features=120)
-        self.fc2 = nn.Linear(in_features=120, out_features=84)
-        self.fc3 = nn.Linear(in_features=84, out_features=10)
-
-    def forward(self, x):
-        x = self.pool1(F.relu(self.conv1(x)))
-        x = self.pool2(F.relu(self.conv2(x)))
-
-        x = x.view(-1, self.num_flat_features)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
-
-    def _get_num_flat_features(self, shape):
-        x = torch.randn(1, *shape)
-        x = self.pool1(F.relu(self.conv1(x)))
-        x = self.pool2(F.relu(self.conv2(x)))
-
-        size = x.size()
-        num_features = 1
-        for s in size:
-            num_features *= s
-        return num_features
-
-
-
-
-
 
 if __name__ == '__main__':
 
@@ -122,14 +85,13 @@ if __name__ == '__main__':
     ])
 
     train_set = torchvision.datasets.MNIST(root=root, train=True, transform=transform, download=True)
-    train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=256, shuffle=True, num_workers=10)
+    train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=flg_batchsize, shuffle=True, num_workers=10)
     test_set = torchvision.datasets.MNIST(root=root, train=False, transform=transform, download=True)
-    test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=256, shuffle=False, num_workers=10)
+    test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=flg_batchsize, shuffle=False, num_workers=10)
 
     data_shape = train_set[0][0].shape  # Shape of single image, no batch size!
 
-    # Net = CNN(data_shape)
-    Net = CNN_small(data_shape)
+    Net = CNNsmall(data_shape)
     Net.to(device)
 
     print(Net)
@@ -137,5 +99,5 @@ if __name__ == '__main__':
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
 
-    train_Net(Net=Net, N_epoch=5, criterion=criterion, optimizer=optimizer)
+    train_Net(Net=Net, N_epoch=1, criterion=criterion, optimizer=optimizer)
     test_Net(Net=Net)

@@ -3,9 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-
-class CNN_small(nn.Module):
-    '''
+class CNNsmall(nn.Module):
+    """
     Small convolutional neural network for minor tests.
         - 2 * (conv + maxpool)
         - 3 * MLP
@@ -13,9 +12,9 @@ class CNN_small(nn.Module):
 
     Args:
         inp_shape (list): Shape of input data: [#Channel, Height, Width]
-    '''
+    """
     def __init__(self, inp_shape):
-        super(CNN_small, self).__init__()
+        super(CNNsmall, self).__init__()
 
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5)
         self.pool1 = nn.MaxPool2d(kernel_size=2)
@@ -37,6 +36,15 @@ class CNN_small(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
+        return x
+
+    def forward_part(self, x):
+        x = self.pool1(F.relu(self.conv1(x)))
+        x = self.pool2(F.relu(self.conv2(x)))
+
+        x = x.view(-1, self.num_flat_features)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
         return x
 
     def _get_num_flat_features(self, shape):
