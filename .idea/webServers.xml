@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="d22f4d63-0c77-4a2e-bba8-96f87523fd9a" name="BasesEnsemble on 'Reno'" url="http://reno.informatik.uni-oldenburg.de">
+        <fileTransfer host="reno.informatik.uni-oldenburg.de" port="22" rootFolder="/home/pmirbach" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" />
+          </advancedOptions>
+          <option name="port" value="22" />
+        </fileTransfer>
+      </webServer>
+      <webServer id="cf7c7aa4-3e89-4fc4-94cd-e704af436181" name="BasesEnsemble on 'Nevada'" url="http://mars.uni-oldenburg.de">
+        <fileTransfer host="mars.uni-oldenburg.de" port="22" rootFolder="/home/pmirbach" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" />
+          </advancedOptions>
+          <option name="port" value="22" />
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

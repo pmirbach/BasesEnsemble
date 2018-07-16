@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+#SBATCH --gres=gpu:1
+#SBATCH --job-name="Small_CNN_Tests"
+#SBATCH --ntasks=10
+#SBATCH --mem=64G
+#SBATCH --time=2-00:00
+#SBATCH --output=./reports/slurm.%j.out
+#SBATCH --error=./reports/slurm.%j.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=pmirbach
+
+python3.6 Main.py
