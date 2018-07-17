@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from NeuralNetworks import CNNsmall
+from NeuralNetworks import CNNsmall, FFsmall
 from Transformations import dataset_fourier
 
 
@@ -99,7 +99,8 @@ if __name__ == '__main__':
     # data_shape = train_set[0][0].shape  # Shape of single image, no batch size!
     data_shape = train_set_ft[0][0].shape  # Shape of single image, no batch size!
 
-    Net = CNNsmall(data_shape)
+    # Net = CNNsmall(data_shape)
+    Net = FFsmall(data_shape)
     Net.to(device)
 
     print(Net)

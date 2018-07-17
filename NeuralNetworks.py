@@ -3,6 +3,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+def prod(x_list):
+    """
+    Calculates the product of all elements in an list.
+    :param x: list or tupel of scalars
+    :return: Product of all scalars
+    """
+    y = 1
+    for x in x_list:
+        y *= x
+    return y
+
+
+
 class CNNsmall(nn.Module):
     """
     Small convolutional neural network for minor tests.
@@ -54,7 +67,40 @@ class CNNsmall(nn.Module):
         x = self.pool2(F.relu(self.conv2(x)))
 
         size = x.size()
-        num_features = 1
-        for s in size:
-            num_features *= s
+        num_features = prod(size)
+        # num_features = 1
+        # for s in size:
+        #     num_features *= s
         return num_features
+
+
+class FFsmall(nn.Module):
+
+    def __init__(self, inp_shape):
+        super(FFsmall, self).__init__()
+        self.data_shape = inp_shape
+        self.num_features = prod(inp_shape)
+
+        self.fc1 = nn.Linear(in_features=self.num_features, out_features=512)
+        self.bn1 = nn.BatchNorm1d(num_features=512)
+        self.dropout1 = nn.Dropout(p=0.2)
+        self.fc2 = nn.Linear(in_features=512, out_features=256)
+        self.bn2 = nn.BatchNorm1d(num_features=256)
+        self.dropout2 = nn.Dropout(p=0.2)
+        self.fc3 = nn.Linear(in_features=256, out_features=128)
+        self.fc4 = nn.Linear(in_features=128, out_features=64)
+        self.fc5 = nn.Linear(in_features=64, out_features=10)
+
+    def forward(self, x):
+        x = x.view(-1, self.num_features)
+        x = F.relu(self.fc1(x))
+        x = self.bn1(x)
+        x = self.dropout1(x)
+        x = F.relu(self.fc2(x))
+        x = self.bn2(x)
+        x = self.dropout2(x)
+        x = F.relu(self.fc3(x))
+        x = F.relu(self.fc4(x))
+        x = self.fc5(x)
+        return x
+
