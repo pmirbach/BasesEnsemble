@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
+# TODO Refactor: Create module for little helper functions like prod
 def prod(x_list):
     """
     Calculates the product of all elements in an list.
@@ -14,6 +14,10 @@ def prod(x_list):
         y *= x
     return y
 
+
+#TODO Write NN class with variable overall structure: Arbitrary number of layers - different compositions of layers etc.
+
+#TODO Write NN classes with variable layer architecture
 
 
 class CNNsmall(nn.Module):
@@ -90,6 +94,8 @@ class FFsmall(nn.Module):
         self.fc3 = nn.Linear(in_features=256, out_features=128)
         self.fc4 = nn.Linear(in_features=128, out_features=64)
         self.fc5 = nn.Linear(in_features=64, out_features=10)
+
+        #TODO Make this a ResNet (?)
 
     def forward(self, x):
         x = x.view(-1, self.num_features)

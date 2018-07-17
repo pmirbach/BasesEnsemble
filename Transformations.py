@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 # from matplotlib import pyplot as plt
 
 
-
+# TODO Refactor: Create a Dataset module, Transformations should only contain trafos
 class MyDataset(Dataset):
 
     def __init__(self, data, transformation):
@@ -32,6 +32,8 @@ def change_range(x, range, data_range=None):
 
     x = (range[1] - range[0]) * (x - xmin) / (xmax - xmin) + range[0]
     return x
+
+# TODO Include the box cox transformation to normalize data better
 
 
 def trafo(data):
@@ -62,11 +64,11 @@ def trafo(data):
     return (torch.from_numpy(data_trafo).float(), label_trafo)
 
 
-
+# TODO Write check funcitons for tensors / ndarrays - possible as decorators?
 def tensor_check():
     pass
 
-
+#TODO Save preprocessed bases files!
 def dataset_fourier(dataset):
 
     dataset_ft = MyDataset(dataset, trafo)

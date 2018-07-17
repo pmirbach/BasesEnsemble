@@ -77,6 +77,8 @@ def test_Net(Net, test_loader):
 
 if __name__ == '__main__':
 
+    #TODO Take a look at argparser: What is it used for?
+
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     root = './data'
