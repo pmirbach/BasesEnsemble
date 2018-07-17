@@ -15,11 +15,12 @@ class CNNsmall(nn.Module):
     """
     def __init__(self, inp_shape):
         super(CNNsmall, self).__init__()
+        self.data_shape = inp_shape
 
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5)
+        self.conv1 = nn.Conv2d(in_channels=inp_shape[0], out_channels=10, kernel_size=5)
         self.pool1 = nn.MaxPool2d(kernel_size=2)
 
-        self.conv2 = nn.Conv2d(in_channels=6, out_channels=16, kernel_size=5)
+        self.conv2 = nn.Conv2d(in_channels=10, out_channels=20, kernel_size=5)
         self.pool2 = nn.MaxPool2d(kernel_size=2)
 
         self.num_flat_features = self._get_num_flat_features(inp_shape)
