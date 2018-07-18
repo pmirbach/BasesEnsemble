@@ -9,6 +9,7 @@ import errno
 from torch.utils.data import Dataset
 from MyLittleHelpers import sep
 from Transformations import transformation_fourier, normalize_linear
+from matplotlib import pyplot as plt
 
 
 class DatasetBase(Dataset):
@@ -22,9 +23,9 @@ class DatasetBase(Dataset):
         self.trafo_file = os.path.join(path['root'], path['trafo_data'], path['trafo_prefix'] + '_' + file_name)
 
         if base_trafo is not None:
-            self.transform_data(transformation=base_trafo)
+            self.transform_data(transformation=base_trafo, normalization=normalizer)
 
-    def transform_data(self, transformation):
+    def transform_data(self, transformation, normalization):
         if self._check_exists():
             print('File vorhanden.')
             return
@@ -41,15 +42,24 @@ class DatasetBase(Dataset):
                 raise
 
         data, labels = torch.load(self.orig_file)
-        print(type(data), data.size())
-        print(type(labels), labels.size())
+        if len(data.size()) < 4:
+            data = data.unsqueeze(1)
 
-        print('Transforming data...\n')
+        print('Transformation of original data...')
         t0 = time.time()
         data_trafo = transformation(data)
         print('Transformation completed in {:5.1f} seconds.'.format(time.time() - t0))
 
 
+        if normalization is not None:
+            print('Normalization of transformed data...')
+            t0 = time.time()
+            for i in range(data_trafo.size()[1]):   # Normalize every channel seperatly
+                data_trafo[:,i,:,:] = normalization(data_trafo[:,i,:,:])
+            print('Normalization completed in {:5.1f} seconds.'.format(time.time() - t0))
+
+        self.data_trafo = data_trafo
+        self.labels = labels
 
     def _check_exists(self, trafo=True):
         if trafo:
@@ -57,17 +67,34 @@ class DatasetBase(Dataset):
         else:
             return os.path.exists(self.orig_file)
 
+    def __len__(self):
+        return self.data_trafo.size()[0]
 
-def test_trafo(data):
-    time.sleep(1)
-    return 1
+    def __getitem__(self, idx):
+        return self.data_trafo[idx, :, :, :], self.labels[idx]
+
 
 
 if __name__ == '__main__':
 
     sep()
     path1 = {'root': 'data', 'orig_data': 'processed', 'trafo_data': 'fourier', 'trafo_prefix': 'ft'}
-    set1 = DatasetBase(name='Fourier', path=path1, train=True, base_trafo=transformation_fourier)
+    set1 = DatasetBase(name='Fourier', path=path1, train=True,
+                       base_trafo=transformation_fourier, normalizer=normalize_linear)
+    loader1 = torch.utils.data.DataLoader(dataset=set1, batch_size=1, shuffle=True, num_workers=0)
+
+    it = iter(loader1)
+    data, label = it.next()
+    data = data.numpy()
+
+    fig, axes = plt.subplots(2, 2)
+
+    axes[0, 0].imshow(data[0, 0, :, :], cmap=plt.get_cmap('gray'))
+    axes[1, 0].hist(data[0, 0, :, :].flatten(), bins=100)
+    axes[0, 1].imshow(data[0, 1, :, :], cmap=plt.get_cmap('gray'))
+    axes[1, 1].hist(data[0, 1, :, :].flatten(), bins=100)
+
+
 
 
     sep()

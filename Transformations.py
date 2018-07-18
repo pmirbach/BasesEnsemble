@@ -57,9 +57,8 @@ def transformation_fourier(data):
     :param data: 2d numpy or torch dataset: [N, Height, Width]
     :return: Fourier transform of data along axis 0. [N, real/imag, Height, Width]
     """
-    data_ft = np.fft.fft2(data)
-    data_ft = np.stack((np.real(data_ft), np.imag(data_ft)), axis=1)
-    return data_ft
+    data_ft = np.fft.fft2(data) #TODO Check if vectorized solution is correct!
+    return np.concatenate((np.real(data_ft), np.imag(data_ft)), axis=1)
 
 
 #TODO Implement Laplace transformation
@@ -91,7 +90,7 @@ def normalize_box_cox(data):
 
 
 @tensor_ndarray_handler
-def normalize_linear(data, range, data_range=None):
+def normalize_linear(data, range=[-1, 1], data_range=None):
     """
     Transforms data of arbitrary shape linear into a given range.
     :param data: real data of any shape
@@ -109,7 +108,7 @@ def normalize_linear(data, range, data_range=None):
 
 
 if __name__ == '__main__':
-    x = torch.randn(100, 28, 28)
+    x = torch.randn(100, 1, 28, 28)
 
     y = transformation_fourier(x)
 
