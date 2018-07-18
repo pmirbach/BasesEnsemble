@@ -8,6 +8,7 @@ import time
 import errno
 from torch.utils.data import Dataset
 from MyLittleHelpers import sep
+from Transformations import transformation_fourier, normalize_linear
 
 
 class DatasetBase(Dataset):
@@ -40,6 +41,9 @@ class DatasetBase(Dataset):
                 raise
 
         data, labels = torch.load(self.orig_file)
+        print(type(data), data.size())
+        print(type(labels), labels.size())
+
         print('Transforming data...\n')
         t0 = time.time()
         data_trafo = transformation(data)
@@ -55,7 +59,7 @@ class DatasetBase(Dataset):
 
 
 def test_trafo(data):
-    time.sleep(2)
+    time.sleep(1)
     return 1
 
 
@@ -63,7 +67,7 @@ if __name__ == '__main__':
 
     sep()
     path1 = {'root': 'data', 'orig_data': 'processed', 'trafo_data': 'fourier', 'trafo_prefix': 'ft'}
-    set1 = DatasetBase(name='Fourier', path=path1, train=True, base_trafo=test_trafo)
+    set1 = DatasetBase(name='Fourier', path=path1, train=True, base_trafo=transformation_fourier)
 
 
     sep()
