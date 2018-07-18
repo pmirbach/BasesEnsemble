@@ -2,17 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# TODO Refactor: Create module for little helper functions like prod
-def prod(x_list):
-    """
-    Calculates the product of all elements in an list.
-    :param x: list or tupel of scalars
-    :return: Product of all scalars
-    """
-    y = 1
-    for x in x_list:
-        y *= x
-    return y
+from MyLittleHelpers import prod
+
 
 
 #TODO Write NN class with variable overall structure: Arbitrary number of layers - different compositions of layers etc.

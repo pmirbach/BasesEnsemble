@@ -55,6 +55,7 @@ def train_Net(Net, train_loader, N_epoch, criterion, optimizer):
     print('Finished Training - Duration: {0:5.1f} seconds'.format(time.time() - start_time_0))
 
 
+#TODO Rename to valid(ate)
 def test_Net(Net, test_loader):
     correct = 0
     total = 0

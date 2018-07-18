@@ -36,6 +36,7 @@ def change_range(x, range, data_range=None):
 # TODO Include the box cox transformation to normalize data better
 
 
+
 def trafo(data):
     len = [data.__len__(), ]
     data_shape = len + list(data.__getitem__(0)[0].size())
@@ -44,8 +45,7 @@ def trafo(data):
     data_trafo = np.zeros(data_shape)
     label_trafo = torch.zeros(data.__len__(), dtype=torch.int64)
 
-    for i in range(data.__len__()):
-    # for i in range(11):
+    for i in range(data.__len__()):     #TODO Vectorize?
         img, label = data.__getitem__(i)
         img_np = img.numpy()
         img_ft_np = np.fft.fft2(img_np)
