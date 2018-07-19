@@ -1,8 +1,10 @@
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader
 
 from NeuralNetworks import CNNsmall, FFsmall
-from Transformations import dataset_fourier
+from Transformations import transformation_fourier, normalize_linear
+from Datasets import DatasetBase
 
 
 import torchvision
@@ -90,17 +92,21 @@ if __name__ == '__main__':
     ])
 
     train_set = torchvision.datasets.MNIST(root=root, train=True, transform=transform, download=True)
-    train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=flg_batchsize, shuffle=True, num_workers=10)
+    train_loader = DataLoader(dataset=train_set, batch_size=flg_batchsize, shuffle=True, num_workers=10)
     test_set = torchvision.datasets.MNIST(root=root, train=False, transform=transform, download=True)
-    test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=flg_batchsize, shuffle=False, num_workers=10)
+    test_loader = DataLoader(dataset=test_set, batch_size=flg_batchsize, shuffle=False, num_workers=10)
 
-    train_set_ft = dataset_fourier(train_set)
-    test_set_ft = dataset_fourier(test_set)
-    train_loader_ft = torch.utils.data.DataLoader(dataset=train_set_ft, batch_size=flg_batchsize, shuffle=True, num_workers=10)
-    test_loader_ft = torch.utils.data.DataLoader(dataset=test_set_ft, batch_size=flg_batchsize, shuffle=False, num_workers=10)
+    path_ft = {'root': 'data', 'orig_data': 'processed', 'trafo_data': 'fourier', 'trafo_prefix': 'ft'}
+    train_set_ft = DatasetBase(name='Fourier', path=path_ft, train=True, base_trafo=transformation_fourier,
+                               normalizer=normalize_linear, recalc=False)
+    test_set_ft = DatasetBase(name='Fourier', path=path_ft, train=False, base_trafo=transformation_fourier,
+                               normalizer=normalize_linear, recalc=False)
+    train_loader_ft = DataLoader(dataset=train_set_ft, batch_size=flg_batchsize, shuffle=True, num_workers=10)
+    test_loader_ft = DataLoader(dataset=test_set_ft, batch_size=flg_batchsize, shuffle=False, num_workers=10)
+
 
     # data_shape = train_set[0][0].shape  # Shape of single image, no batch size!
-    data_shape = train_set_ft[0][0].shape  # Shape of single image, no batch size!
+    data_shape = train_set_ft[0][0].shape  # Shape of single image, no batch size! [ch, H, W]
 
     # Net = CNNsmall(data_shape)
     Net = FFsmall(data_shape)

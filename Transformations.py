@@ -33,7 +33,7 @@ def post_trafo(data):
         data = torch.from_numpy(data)
     else:
         raise Exception('Transformation output data must be torch.Tensor or numpy.ndarray.')
-    return data
+    return data.float()
 
 
 def tensor_ndarray_handler(func):
@@ -67,7 +67,7 @@ def transformation_fourier(data):
         data_ft = np.fft.fft2(data[:, iCh, :, :])
         data_ft = np.real_if_close(data_ft, tol=1e6)
 
-        for iTest in np.random.choice(range(dshape[0]), size=5):
+        for iTest in np.random.choice(range(dshape[0]), size=3):
             data_ft_test = np.fft.fft2(data[iTest, iCh, :, :])
             if not np.allclose(data_ft[iTest, :, :], data_ft_test):
                 raise Exception('Vectorized transformation results vary from non vectorized')
