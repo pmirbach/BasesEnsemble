@@ -79,8 +79,10 @@ if __name__ == '__main__':
 
     sep()
     path1 = {'root': 'data', 'orig_data': 'processed', 'trafo_data': 'fourier', 'trafo_prefix': 'ft'}
+    # set1 = DatasetBase(name='Fourier', path=path1, train=True,
+    #                    base_trafo=transformation_fourier, normalizer=normalize_linear)
     set1 = DatasetBase(name='Fourier', path=path1, train=True,
-                       base_trafo=transformation_fourier, normalizer=normalize_linear)
+                       base_trafo=transformation_fourier)
     loader1 = torch.utils.data.DataLoader(dataset=set1, batch_size=1, shuffle=True, num_workers=0)
 
     it = iter(loader1)

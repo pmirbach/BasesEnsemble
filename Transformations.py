@@ -4,6 +4,7 @@ from functools import wraps
 from torch.utils.data import Dataset
 from scipy.stats import boxcox
 
+
 # from matplotlib import pyplot as plt
 
 
@@ -41,12 +42,14 @@ def tensor_ndarray_handler(func):
     :param func:
     :return:
     """
+
     @wraps(func)
     def function_wrapper(data, *args, **kwargs):
         data = pre_trafo(data)
         data = func(data, *args, **kwargs)
         data = post_trafo(data)
         return data
+
     return function_wrapper
 
 
@@ -54,18 +57,41 @@ def tensor_ndarray_handler(func):
 def transformation_fourier(data):
     """
     Fourier transformation of data along axis 0. Real and complex part saved in different channels.
-    :param data: 2d numpy or torch dataset: [N, Height, Width]
-    :return: Fourier transform of data along axis 0. [N, real/imag, Height, Width]
+    :param data: 2d numpy or torch dataset: [N, channel, Height, Width]
+    :return: Fourier transform of data along axis 0. [N, channel*2 (real/imag), Height, Width]
     """
-    data_ft = np.fft.fft2(data) #TODO Check if vectorized solution is correct!
-    return np.concatenate((np.real(data_ft), np.imag(data_ft)), axis=1)
+    dshape = list(data.shape)
+    nCh = dshape[1]
+    f_ind = 1
+    for iCh in range(nCh):
+        data_ft = np.fft.fft2(data[:, iCh, :, :])
+        data_ft = np.real_if_close(data_ft, tol=1e6)
+
+        for iTest in np.random.choice(range(dshape[0]), size=5):
+            data_ft_test = np.fft.fft2(data[iTest, iCh, :, :])
+            if not np.allclose(data_ft[iTest, :, :], data_ft_test):
+                raise Exception('Vectorized transformation results vary from non vectorized')
+
+        # Allocate memory for transformed data:
+        if iCh == 0:
+            if np.any(np.iscomplex(data_ft)):
+                dshape[1] *= 2
+                f_ind = 2
+            data_out = np.zeros(dshape)
+
+        data_out[:, iCh * f_ind, :, :] = np.real(data_ft)
+        if f_ind == 2:
+            data_out[:, iCh * f_ind + 1, :, :] = np.imag(data_ft)
+
+    return data_out
 
 
-#TODO Implement Laplace transformation
+# TODO Implement Laplace transformation
 def transformation_laplace():
     pass
 
-#TODO Implement Hough transformation
+
+# TODO Implement Hough transformation
 def transformation_hough():
     pass
 
@@ -109,7 +135,6 @@ def normalize_linear(data, range=[-1, 1], data_range=None):
 
 if __name__ == '__main__':
     x = torch.randn(100, 1, 28, 28)
-
     y = transformation_fourier(x)
 
     # print(y)
