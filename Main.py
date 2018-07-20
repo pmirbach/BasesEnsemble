@@ -108,14 +108,14 @@ if __name__ == '__main__':
     test_loader_ft = DataLoader(dataset=test_set_ft, batch_size=flg_batchsize, shuffle=False, num_workers=10)
 
 
-    # data_shape = train_set[0][0].shape  # Shape of single image, no batch size!
-    data_shape = train_set_ft[0][0].shape  # Shape of single image, no batch size! [ch, H, W]
+    data_shape = train_set[0][0].shape  # Shape of single image, no batch size!
+    # data_shape = train_set_ft[0][0].shape  # Shape of single image, no batch size! [ch, H, W]
 
 
 
 
-    # Net = CNNsmall(data_shape)
-    Net = FFsmall(data_shape)
+    Net = CNNsmall(data_shape)
+    # Net = FFsmall(data_shape)
     Net.to(device)
 
     print(Net)
@@ -123,11 +123,11 @@ if __name__ == '__main__':
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
 
-    # train_Net(Net=Net, train_loader=train_loader, N_epoch=40, criterion=criterion, optimizer=optimizer)
-    # test_Net(Net=Net, test_loader=test_loader)
-
-    train_Net(Net=Net, train_loader=train_loader_ft, N_epoch=80, criterion=criterion, optimizer=optimizer)
-    test_Net(Net=Net, test_loader=test_loader_ft)
+    train_Net(Net=Net, train_loader=train_loader, N_epoch=40, criterion=criterion, optimizer=optimizer)
+    test_Net(Net=Net, test_loader=test_loader)
+    #
+    # train_Net(Net=Net, train_loader=train_loader_ft, N_epoch=80, criterion=criterion, optimizer=optimizer)
+    # test_Net(Net=Net, test_loader=test_loader_ft)
 
     #TODO Make little Helper:
     model_path = r'./results/models'
@@ -141,4 +141,5 @@ if __name__ == '__main__':
 
     #TODO Create a NN Save Load module: Models, Trainstatus, ...
     # file_name = 'FF_fourier_trained.pt'
-    # torch.save(Net, os.path.join(model_path, file_name))
+    file_name = 'CNN_real_trained_2.pt'
+    torch.save(Net, os.path.join(model_path, file_name))

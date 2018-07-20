@@ -101,6 +101,51 @@ class FFsmall(nn.Module):
         x = self.fc5(x)
         return x
 
+    def forward_part(self, x):
+        x = x.view(-1, self.num_features)
+        x = F.relu(self.fc1(x))
+        x = self.bn1(x)
+        x = self.dropout1(x)
+        x = F.relu(self.fc2(x))
+        x = self.bn2(x)
+        x = self.dropout2(x)
+        x = F.relu(self.fc3(x))
+        x = F.relu(self.fc4(x))
+        return x
+
+
+class EnsembleMLP(nn.Module):
+
+    def __init__(self, Net_real, Net_ft):
+        super(EnsembleMLP, self).__init__()
+
+        self.Net_real = Net_real.eval()
+        self.Net_ft = Net_ft.eval()
+
+        self.fc1 = nn.Linear(in_features=148, out_features=80)
+        self.bn1 = nn.BatchNorm1d(num_features=80)
+        self.dropout1 = nn.Dropout(p=0.2)
+        self.fc2 = nn.Linear(in_features=80, out_features=10)
+
+    def forward(self, x):
+        x_real = x[0]
+        x_ft = x[1]
+        x_real = x_real.float()
+        x_ft = x_ft.float()
+
+        x_real = self.Net_real.forward_part(x_real)
+        x_ft = self.Net_ft.forward_part(x_ft)
+
+        # x = x_real + x_ft
+        x = torch.cat((x_real, x_ft), 1)
+
+        x = F.relu(self.fc1(x))
+        x = self.bn1(x)
+        x = self.dropout1(x)
+        x = self.fc2(x)
+        return x
+
+
 
 if __name__ == '__main__':
     x = torch.randn(1, 1, 28, 28)
