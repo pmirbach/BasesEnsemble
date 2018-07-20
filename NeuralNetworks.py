@@ -5,10 +5,9 @@ import torch.nn.functional as F
 from MyLittleHelpers import prod
 
 
+# TODO Write NN class with variable overall structure: Arbitrary number of layers - different compositions of layers etc.
 
-#TODO Write NN class with variable overall structure: Arbitrary number of layers - different compositions of layers etc.
-
-#TODO Write NN classes with variable layer architecture
+# TODO Write NN classes with variable layer architecture
 
 
 class CNNsmall(nn.Module):
@@ -21,6 +20,7 @@ class CNNsmall(nn.Module):
     Args:
         inp_shape (list): Shape of input data: [#Channel, Height, Width]
     """
+
     def __init__(self, inp_shape):
         super(CNNsmall, self).__init__()
         self.data_shape = inp_shape
@@ -86,7 +86,7 @@ class FFsmall(nn.Module):
         self.fc4 = nn.Linear(in_features=128, out_features=64)
         self.fc5 = nn.Linear(in_features=64, out_features=10)
 
-        #TODO Make this a ResNet (?)
+        # TODO Make this a ResNet (?)
 
     def forward(self, x):
         x = x.view(-1, self.num_features)
@@ -101,3 +101,13 @@ class FFsmall(nn.Module):
         x = self.fc5(x)
         return x
 
+
+if __name__ == '__main__':
+    x = torch.randn(1, 1, 28, 28)
+    xshape = x.size()
+
+    CNet = CNNsmall(xshape)
+    FFNet = FFsmall(xshape)
+
+    CNet.forward(x)
+    FFNet.forward(x)

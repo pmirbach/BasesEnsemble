@@ -17,11 +17,13 @@ import time
 
 import os
 import pickle
+import errno
+
 
 flg_batchsize = 64
 
 
-
+#TODO Refactor: Get training routine somewhere else! (Mabe NeuralNetworks.py?)
 def train_Net(Net, train_loader, N_epoch, criterion, optimizer):
     start_time_0 = time.time()
     time_epoch = np.zeros((N_epoch,))
@@ -56,7 +58,7 @@ def train_Net(Net, train_loader, N_epoch, criterion, optimizer):
 
     print('Finished Training - Duration: {0:5.1f} seconds'.format(time.time() - start_time_0))
 
-
+#TODO Refactor: Get testing routine somewhere else! (Mabe NeuralNetworks.py?)
 #TODO Rename to valid(ate)
 def test_Net(Net, test_loader):
     correct = 0
@@ -84,6 +86,7 @@ if __name__ == '__main__':
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+    #TODO Where to put all this stuff? Datasets.py?
     root = './data'
     # transform = torchvision.transforms.ToTensor()
     transform = torchvision.transforms.Compose([
@@ -108,6 +111,9 @@ if __name__ == '__main__':
     # data_shape = train_set[0][0].shape  # Shape of single image, no batch size!
     data_shape = train_set_ft[0][0].shape  # Shape of single image, no batch size! [ch, H, W]
 
+
+
+
     # Net = CNNsmall(data_shape)
     Net = FFsmall(data_shape)
     Net.to(device)
@@ -117,8 +123,22 @@ if __name__ == '__main__':
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
 
-    # train_Net(Net=Net, train_loader=train_loader, N_epoch=20, criterion=criterion, optimizer=optimizer)
+    # train_Net(Net=Net, train_loader=train_loader, N_epoch=40, criterion=criterion, optimizer=optimizer)
     # test_Net(Net=Net, test_loader=test_loader)
 
-    train_Net(Net=Net, train_loader=train_loader_ft, N_epoch=20, criterion=criterion, optimizer=optimizer)
+    train_Net(Net=Net, train_loader=train_loader_ft, N_epoch=80, criterion=criterion, optimizer=optimizer)
     test_Net(Net=Net, test_loader=test_loader_ft)
+
+    #TODO Make little Helper:
+    model_path = r'./results/models'
+    try:
+        os.makedirs(model_path)
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            pass
+        else:
+            raise
+
+    #TODO Create a NN Save Load module: Models, Trainstatus, ...
+    # file_name = 'FF_fourier_trained.pt'
+    # torch.save(Net, os.path.join(model_path, file_name))
