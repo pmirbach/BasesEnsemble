@@ -9,6 +9,8 @@ import errno
 from torch.utils.data import Dataset
 from MyLittleHelpers import sep
 from Transformations import transformation_fourier, normalize_linear
+
+
 # from matplotlib import pyplot as plt
 
 
@@ -36,7 +38,6 @@ class DatasetBase(Dataset):
 
     def transform_data(self, transformation, normalization):
         if self._check_exists():
-            print('File vorhanden.')
             return
 
         if not self._check_exists(trafo=False):
@@ -80,6 +81,25 @@ class DatasetBase(Dataset):
 
     def __getitem__(self, idx):
         return self.data[idx, :, :, :], self.labels[idx]
+
+
+class MyStackedDataset(Dataset):
+    def __init__(self, datasets_list):
+        self.datasets_list = datasets_list
+        self.len = datasets_list[0].__len__()
+
+        # self.data_list = [dataset.data for dataset in datasets_list]
+        # self.labels = datasets_list[0].labels
+
+    def __len__(self):
+        return self.len
+
+    def __getitem__(self, idx):
+        data_total = []
+        for dataset in self.datasets_list:
+            data, label = dataset.__getitem__(idx)
+            data_total.append(data)
+        return data_total, label
 
 
 if __name__ == '__main__':
