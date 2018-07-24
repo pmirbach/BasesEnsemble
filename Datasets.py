@@ -84,7 +84,7 @@ class DatasetBase(Dataset):
 
 
 class MyStackedDataset(Dataset):
-    def __init__(self, datasets_list):
+    def __init__(self, datasets_list, train=True):
         self.datasets_list = datasets_list
         self.len = datasets_list[0].__len__()
 

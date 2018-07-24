@@ -35,8 +35,14 @@ def set_grad_false(layer):
     if hasattr(layer, 'bias'):
         layer.bias.requires_grad = False
 
+def inp_split_ensemble(data, device):
+    inputs = data[0]
+    inputs = [inp.to(device) for inp in inputs]
+    labels = data[1].to(device)
+    return inputs, labels
 
-def train_Net_standard(Net, train_loader, N_epoch, criterion, optimizer, device):
+
+def train_Net_standard(Net, train_loader, N_epoch, criterion, optimizer, device, inp_split=None):
     Net.to(device)
     time_epoch = np.zeros((N_epoch,))
 
@@ -48,7 +54,17 @@ def train_Net_standard(Net, train_loader, N_epoch, criterion, optimizer, device)
         epoch_loss = 0
 
         for i, data in enumerate(train_loader, start=0):
-            inputs, labels = data[0].to(device), data[1].to(device)
+
+            if inp_split is None:
+                inputs, labels = data[0].to(device), data[1].to(device)
+            else:
+                inputs, labels = inp_split(data, device)
+            # inputs = data[0]
+            # inputs = [inp.to(device) for inp in inputs]
+            #
+            # labels = data[1].to(device)
+
+
 
             optimizer.zero_grad()
             outputs = Net(inputs)
@@ -67,7 +83,7 @@ def train_Net_standard(Net, train_loader, N_epoch, criterion, optimizer, device)
     print('Finished Training - Duration: {0:5.1f} seconds'.format(np.sum(time_epoch)))
 
 
-def validate_Net_standard(Net, test_loader, device):
+def validate_Net_standard(Net, test_loader, device, inp_split=None):
     Net.eval()
     num_images = len(test_loader.dataset)
     batchsize = test_loader.batch_size
@@ -75,9 +91,19 @@ def validate_Net_standard(Net, test_loader, device):
     res = np.zeros(num_images)
     with torch.no_grad():
         for i, data in enumerate(test_loader):
-            images, labels = data[0].to(device), data[1].to(device)
 
-            outputs = Net(images)
+            if inp_split is None:
+                inputs, labels = data[0].to(device), data[1].to(device)
+            else:
+                inputs, labels = inp_split(data, device)
+            # inputs = data[0]
+            # inputs = [inp.to(device) for inp in inputs]
+            #
+            # labels = data[1].to(device)
+
+            # inputs, labels = data[0].to(device), data[1].to(device)
+
+            outputs = Net(inputs)
             _, predicted = torch.max(outputs.data, 1)
 
             comp = predicted == labels
@@ -199,15 +225,21 @@ class EnsembleMLP(nn.Module):
         self.num_in_features = 0
         for Net_base in self.Net_list:
             Net_base.eval()
-            self.num_in_features += Net_base.num_out_features
-
             for child in Net_base.children():
                 set_grad_false(child)
+            self.num_in_features += Net_base.num_out_features
 
-        self.fc1 = nn.Linear(in_features=self.num_in_features, out_features=64)
-        self.bn1 = nn.BatchNorm1d(num_features=64)
         self.dropout = nn.Dropout(p=0.2)
-        self.fc2 = nn.Linear(in_features=64, out_features=10)
+
+        self.fc1 = nn.Linear(in_features=self.num_in_features, out_features=256)
+        self.bn1 = nn.BatchNorm1d(num_features=256)
+
+        self.fc2 = nn.Linear(in_features=256, out_features=128)
+        self.bn2 = nn.BatchNorm1d(num_features=128)
+
+        self.fc3 = nn.Linear(in_features=128, out_features=64)
+
+        self.fc4 = nn.Linear(in_features=64, out_features=10)
 
     def forward(self, x):
         x_bases = []
@@ -218,13 +250,15 @@ class EnsembleMLP(nn.Module):
         x = torch.cat(x_bases, 1)
 
         x = self.dropout(self.bn1(F.relu(self.fc1(x))))
-        return self.fc2(x)
+        x = self.dropout(self.bn2(F.relu(self.fc2(x))))
+        x = self.fc3(x)
+        return self.fc4(x)
 
     def train_Net(self, train_loader, N_epoch, criterion, optimizer, device):
-        train_Net_standard(self, train_loader, N_epoch, criterion, optimizer, device)
+        train_Net_standard(self, train_loader, N_epoch, criterion, optimizer, device, inp_split_ensemble)
 
     def validate_Net(self, test_loader, device):
-        self.predictions = validate_Net_standard(self, test_loader, device)
+        self.predictions = validate_Net_standard(self, test_loader, device, inp_split_ensemble)
         return self.predictions
 
 

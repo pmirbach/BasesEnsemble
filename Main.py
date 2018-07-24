@@ -35,18 +35,23 @@ if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     #TODO Where to put all this stuff? Datasets.py?
-    root = './data'
+    # root = './data'
+    root = './data/fashion_mnist/'
+
     # transform = torchvision.transforms.ToTensor()
     transform = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize(mean=(0.5, ), std=(0.5, ))
     ])
 
-    train_set_real = torchvision.datasets.MNIST(root=root, train=True, transform=transform, download=True)
-    test_set_real = torchvision.datasets.MNIST(root=root, train=False, transform=transform, download=True)
+    train_set_real = torchvision.datasets.FashionMNIST(root=root, train=True, transform=transform, download=True)
+    test_set_real = torchvision.datasets.FashionMNIST(root=root, train=False, transform=transform, download=True)
+
+    # train_set_real = torchvision.datasets.MNIST(root=root, train=True, transform=transform, download=True)
+    # test_set_real = torchvision.datasets.MNIST(root=root, train=False, transform=transform, download=True)
 
 
-    path_ft = {'root': 'data', 'orig_data': 'processed', 'trafo_data': 'fourier', 'trafo_prefix': 'ft'}
+    path_ft = {'root': root, 'orig_data': 'processed', 'trafo_data': 'fourier', 'trafo_prefix': 'ft'}
     train_set_ft = DatasetBase(name='Fourier', path=path_ft, train=True, base_trafo=transformation_fourier,
                                normalizer=normalize_linear, recalc=False)
     test_set_ft = DatasetBase(name='Fourier', path=path_ft, train=False, base_trafo=transformation_fourier,
@@ -70,8 +75,8 @@ if __name__ == '__main__':
     optimizer_real = optim.SGD(Net_real.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
     optimizer_ft = optim.SGD(Net_ft.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
 
-    Net_real.train_Net(train_loader, 2, criterion, optimizer_real, device)
-    Net_ft.train_Net(train_loader_ft, 2, criterion, optimizer_ft, device)
+    Net_real.train_Net(train_loader, 80, criterion, optimizer_real, device)
+    Net_ft.train_Net(train_loader_ft, 80, criterion, optimizer_ft, device)
 
     pred_real = Net_real.validate_Net(test_loader, device)
     pred_ft = Net_ft.validate_Net(test_loader_ft, device)
@@ -79,7 +84,7 @@ if __name__ == '__main__':
 
     EnsNet = EnsembleMLP([Net_real, Net_ft])
     optimizer_total = optim.SGD(EnsNet.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
-    EnsNet.train_Net(train_loader_total, 2, criterion, optimizer_total, device)
+    EnsNet.train_Net(train_loader_total, 80, criterion, optimizer_total, device)
     pred_total = EnsNet.validate_Net(test_loader_total, device)
 
 
