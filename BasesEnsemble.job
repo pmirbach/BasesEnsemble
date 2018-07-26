@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 
 #SBATCH --gres=gpu:1
-#SBATCH --job-name="Small_CNN_Tests"
+#SBATCH --job-name="ft_nets"
 #SBATCH --ntasks=10
 #SBATCH --mem=64G
 #SBATCH --time=2-00:00
+##SBATCH --time=0-00:10
 #SBATCH --output=./reports/slurm.%j.out
 #SBATCH --error=./reports/slurm.%j.err
 #SBATCH --mail-type=END,FAIL

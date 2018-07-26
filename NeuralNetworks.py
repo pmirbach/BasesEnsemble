@@ -178,15 +178,36 @@ class FFsmall(nn.Module):
         self.num_inp_channels, self.data_shape = _get_data_shape(inp_shape)
         self.num_flat_features = _get_get_num_flat_features(self.num_inp_channels, self.data_shape)
 
-        self.dropout = nn.Dropout(p=0.2)
+        self.dropout = nn.Dropout(p=0.1)
 
-        self.fc1 = nn.Linear(in_features=self.num_flat_features, out_features=512)
-        self.bn1 = nn.BatchNorm1d(num_features=512)
-        self.fc2 = nn.Linear(in_features=512, out_features=256)
-        self.bn2 = nn.BatchNorm1d(num_features=256)
-        self.fc3 = nn.Linear(in_features=256, out_features=128)
-        self.fc4 = nn.Linear(in_features=128, out_features=64)
-        self.fc5 = nn.Linear(in_features=64, out_features=10)
+        self.fc1 = nn.Linear(in_features=self.num_flat_features, out_features=2000, bias=False)
+        self.bn1 = nn.BatchNorm1d(num_features=2000)
+
+        self.fc2 = nn.Linear(in_features=2000, out_features=2500, bias=False)
+        self.bn2 = nn.BatchNorm1d(num_features=2500)
+
+        self.fc3 = nn.Linear(in_features=2500, out_features=3000, bias=False)
+        self.bn3 = nn.BatchNorm1d(num_features=3000)
+
+        self.fc4 = nn.Linear(in_features=3000, out_features=3500, bias=False)
+        self.bn4 = nn.BatchNorm1d(num_features=3500)
+
+        self.fc5 = nn.Linear(in_features=3500, out_features=4000, bias=False)
+        self.bn5 = nn.BatchNorm1d(num_features=4000)
+
+        self.fc6 = nn.Linear(in_features=4000, out_features=10, bias=False)
+        # self.bn6 = nn.BatchNorm1d(num_features=512)
+
+        # self.fc7 = nn.Linear(in_features=1024, out_features=1024, bias=False)
+        # self.bn7 = nn.BatchNorm1d(num_features=1024)
+        #
+        # self.fc8 = nn.Linear(in_features=1024, out_features=1024, bias=False)
+        # # self.bn8 = nn.BatchNorm1d(num_features=512)
+        #
+        # self.fc9 = nn.Linear(in_features=1024, out_features=512, bias=False)
+        # self.bn9 = nn.BatchNorm1d(num_features=512)
+        #
+        # self.fc10 = nn.Linear(in_features=512, out_features=10, bias=False)
 
         self.num_out_features = self.fc4.out_features
 
@@ -196,9 +217,22 @@ class FFsmall(nn.Module):
         x = x.view(-1, self.num_flat_features)
         x = self.dropout(self.bn1(F.relu(self.fc1(x))))
         x = self.dropout(self.bn2(F.relu(self.fc2(x))))
-        x = F.relu(self.fc3(x))
-        x = F.relu(self.fc4(x))
+        # x = F.relu(self.fc2(x))
+        x = self.dropout(self.bn3(F.relu(self.fc3(x))))
+        x = self.dropout(self.bn4(F.relu(self.fc4(x))))
+
         return self.fc5(x)
+
+        # x = F.relu(self.fc4(x))
+        # x = self.dropout(self.bn5(F.relu(self.fc5(x))))
+        # # x = self.dropout(self.bn6(F.relu(self.fc6(x))))
+        # x = F.relu(self.fc6(x))
+        # x = self.dropout(self.bn7(F.relu(self.fc7(x))))
+        # # x = self.dropout(self.bn8(F.relu(self.fc8(x))))
+        # x = F.relu(self.fc8(x))
+        # x = self.bn9(F.relu(self.fc9(x)))
+        #
+        # return self.fc10(x)
 
     def forward_part(self, x):
         x = x.view(-1, self.num_flat_features)

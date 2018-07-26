@@ -72,20 +72,27 @@ if __name__ == '__main__':
 
     criterion = nn.CrossEntropyLoss()
 
-    optimizer_real = optim.SGD(Net_real.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
-    optimizer_ft = optim.SGD(Net_ft.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
+    flg_real = 0
+    flg_ft = 1
+    flg_ens = 0
 
-    Net_real.train_Net(train_loader, 80, criterion, optimizer_real, device)
-    Net_ft.train_Net(train_loader_ft, 80, criterion, optimizer_ft, device)
+    if flg_real:
+        print(Net_real)
+        optimizer_real = optim.SGD(Net_real.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
+        Net_real.train_Net(train_loader, 40, criterion, optimizer_real, device)
+        pred_real = Net_real.validate_Net(test_loader, device)
 
-    pred_real = Net_real.validate_Net(test_loader, device)
-    pred_ft = Net_ft.validate_Net(test_loader_ft, device)
+    if flg_ft:
+        print(Net_ft)
+        optimizer_ft = optim.SGD(Net_ft.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
+        Net_ft.train_Net(train_loader_ft, 40, criterion, optimizer_ft, device)
+        pred_ft = Net_ft.validate_Net(test_loader_ft, device)
 
-
-    EnsNet = EnsembleMLP([Net_real, Net_ft])
-    optimizer_total = optim.SGD(EnsNet.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
-    EnsNet.train_Net(train_loader_total, 80, criterion, optimizer_total, device)
-    pred_total = EnsNet.validate_Net(test_loader_total, device)
+    if flg_ens:
+        EnsNet = EnsembleMLP([Net_real, Net_ft])
+        optimizer_total = optim.SGD(EnsNet.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
+        EnsNet.train_Net(train_loader_total, 40, criterion, optimizer_total, device)
+        pred_total = EnsNet.validate_Net(test_loader_total, device)
 
 
     if False:
