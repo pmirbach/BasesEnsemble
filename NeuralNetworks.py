@@ -33,7 +33,9 @@ def set_grad_false(layer):
     if hasattr(layer, 'weight'):
         layer.weight.requires_grad = False
     if hasattr(layer, 'bias'):
-        layer.bias.requires_grad = False
+        if layer.bias is not None:
+            layer.bias.requires_grad = False
+
 
 def inp_split_ensemble(data, device):
     inputs = data[0]
@@ -63,8 +65,6 @@ def train_Net_standard(Net, train_loader, N_epoch, criterion, optimizer, device,
             # inputs = [inp.to(device) for inp in inputs]
             #
             # labels = data[1].to(device)
-
-
 
             optimizer.zero_grad()
             outputs = Net(inputs)
@@ -115,6 +115,66 @@ def validate_Net_standard(Net, test_loader, device, inp_split=None):
 
     print('Accuracy of the network on the {} test images: {} %'.format(num_images, 100 * np.sum(res) / num_images))
     return res
+
+
+class ResBlockLinear(nn.Module):
+
+    def __init__(self, n_features, n_res_layers=2):
+        super(ResBlockLinear, self).__init__()
+
+        a = []
+        for i in range(n_res_layers):
+            # a.append(nn.Dropout(p=0.2))
+            a.append(nn.Linear(in_features=n_features, out_features=n_features, bias=False))
+            a.append(nn.BatchNorm1d(n_features))
+            a.append(nn.ReLU(inplace=False))
+
+        self.left = nn.Sequential(*a)
+        self.right = nn.Sequential()
+
+    def forward(self, x):
+        out = self.left(x)
+        residual = x
+        out += residual
+        return out
+
+
+class ResNetLinear(nn.Module):
+
+    def __init__(self, inp_shape):
+        super(ResNetLinear, self).__init__()
+        self.num_inp_channels, self.data_shape = _get_data_shape(inp_shape)
+        self.num_flat_features = _get_get_num_flat_features(self.num_inp_channels, self.data_shape)
+
+        # n = round(self.num_flat_features * 1.3)
+        n = round(self.num_flat_features * 2.0)
+        m = 80
+
+        self.pre = nn.Sequential(
+            nn.Linear(in_features=self.num_flat_features, out_features=n),
+            nn.BatchNorm1d(n))
+
+        a = []
+        for i in range(m):
+            a.append(ResBlockLinear(n_features=n))
+
+        self.res = nn.Sequential(*a)
+
+        self.post = nn.Linear(in_features=n, out_features=10)
+
+    def forward(self, x):
+        x = x.view(-1, self.num_flat_features)
+        x = F.relu(self.pre(x))
+        x = self.res(x)
+        x = self.post(x)
+        return x
+
+    def train_Net(self, train_loader, N_epoch, criterion, optimizer, device):
+        train_Net_standard(self, train_loader, N_epoch, criterion, optimizer, device)
+
+    def validate_Net(self, test_loader, device):
+        self.predictions = validate_Net_standard(self, test_loader, device)
+        return self.predictions
 
 
 class CNNsmall(nn.Module):
@@ -220,7 +280,6 @@ class FFsmall(nn.Module):
         # x = F.relu(self.fc2(x))
         x = self.dropout(self.bn3(F.relu(self.fc3(x))))
         x = self.dropout(self.bn4(F.relu(self.fc4(x))))
-
         return self.fc5(x)
 
         # x = F.relu(self.fc4(x))
@@ -247,6 +306,11 @@ class FFsmall(nn.Module):
     def validate_Net(self, test_loader, device):
         self.predictions = validate_Net_standard(self, test_loader, device)
         return self.predictions
+
+
+class TryNet(nn.Module):
+    def __init__(self):
+        pass
 
 
 class EnsembleMLP(nn.Module):
@@ -300,9 +364,11 @@ if __name__ == '__main__':
     x_real = torch.randn(4, 1, 28, 28)
     x_ft = torch.randn(4, 2, 28, 28)
 
-    CNet = CNNsmall(x_real.size())
-    FFNet = FFsmall(x_real.size())
-    EnsNet = EnsembleMLP([CNet, FFNet])
+    # CNet = CNNsmall(x_real.size())
+    FFNet = FFsmall(x_ft.size())
+    # EnsNet = EnsembleMLP([CNet, FFNet])
+
+    ResNetLinear = ResNetLinear(x_ft.size())
 
 
     # for child in CNet.children():
@@ -320,20 +386,24 @@ if __name__ == '__main__':
                 print('has weight')
                 print(child.weight.requires_grad)
             if hasattr(child, 'bias'):
-                print('has bias')
-                print(child.bias.requires_grad)
+                if child.bias is not None:
+                    print('has bias')
+                    print(child.bias.requires_grad)
 
             for param in child.parameters():
                 print(param.size())
             print()
 
 
-    inspec_Net(FFNet)
+    ResNetLinear(x_ft)
+    FFNet(x_ft)
 
-    for child in FFNet.children():
-        set_grad_false(child)
+    # inspec_Net(ResNetLinear)
 
-    inspec_Net(FFNet)
+    # for child in FFNet.children():
+    #     set_grad_false(child)
+
+    # inspec_Net(FFNet)
 
     # for param in EnsNet.parameters():
     #     print(param.size())

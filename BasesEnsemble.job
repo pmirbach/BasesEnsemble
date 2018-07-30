@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #SBATCH --gres=gpu:1
-#SBATCH --job-name="ft_nets"
+#SBATCH --job-name="ftResNet"
 #SBATCH --ntasks=10
 #SBATCH --mem=64G
 #SBATCH --time=2-00:00

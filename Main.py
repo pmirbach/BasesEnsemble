@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from NeuralNetworks import CNNsmall, FFsmall, EnsembleMLP
+from NeuralNetworks import CNNsmall, FFsmall, EnsembleMLP, ResNetLinear
 from Transformations import transformation_fourier, normalize_linear
 from Datasets import DatasetBase, MyStackedDataset
 
@@ -68,7 +68,8 @@ if __name__ == '__main__':
     test_loader_total = DataLoader(dataset=test_set_total, batch_size=64, shuffle=False, num_workers=10)
 
     Net_real = CNNsmall(train_set_real[0][0].shape)
-    Net_ft = FFsmall(train_set_ft[0][0].shape)
+    #Net_ft = FFsmall(train_set_ft[0][0].shape)
+    Net_ft = ResNetLinear(train_set_ft[0][0].shape)
 
     criterion = nn.CrossEntropyLoss()
 
