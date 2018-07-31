@@ -54,11 +54,14 @@ CNet = CNNsmall([1, 28, 28])
 #
 #
 
+
+
+
 class TryNet(nn.Module):
     def __init__(self):
         super(TryNet, self).__init__()
-        self.pre = nn.Sequential(nn.Linear(200, 100), nn.Linear(200, 50))
-        self.base = nn.Linear(50, 10)
+        self.pre = nn.Sequential(nn.Linear(200, 100), nn.Linear(100, 50))
+        self.base = nn.Linear(50, 1)
 
     def forward(self, x):
         x = self.pre(x)
@@ -76,11 +79,45 @@ special_params = [{'params': TN.pre.parameters()},
 # optimizer_real = optim.Adam(CNet.parameters(), lr=1e-3)
 optimizer_real = optim.Adam(special_params, lr=1e-3)
 
-print(optimizer_real)
+print(sys.getsizeof(optimizer_real))
 
-opt_d = optimizer_real.state_dict()
-print(opt_d)
-print(len(opt_d['param_groups']))
+# print(optimizer_real)
+
+
+
+
+
+
+def fake_training(model, optimizer):
+    for _ in range(2):
+        optimizer.zero_grad()
+        out = model(torch.randn(200))
+        out.backward()
+        optimizer.step()
+
+
+# fake_training(TN, optimizer_real)
+#
+#
+# opt_d = optimizer_real.state_dict()
+#
+#
+# opt2 = optim.Adam(special_params)
+#
+# print(opt2)
+#
+#
+#
+# opt2.load_state_dict(opt_d)
+#
+#
+# # print(optimizer_real)
+# #
+# # opt_d2 = optimizer_real.state_dict()
+# # print(opt_d2)
+#
+# print(**None)
+
 
 
 class Training():
@@ -88,18 +125,30 @@ class Training():
 
     def __init__(self, Net=None, dataloader=None, optimizer=None, loss_function=None, other_params=None):
         self.Net = Net
-        self.set_optimizer(optimizer)
+        self.opti_ctrl = self.set_opti_ctrl(optimizer)
+        self.optimizer = self.init_optimizer()
 
     def set_dataloader(self):
         print(1)
 
-    def set_optimizer(self, optimizer):
-
+    def set_opti_ctrl(self, optimizer):
         if type(optimizer).__name__ in self.optim_cls.keys():
-            self.optimizer_dict = {'method': type(optimizer).__name__, 'params': None}
-
+            opti_ctrl = {'method': type(optimizer).__name__, 'params': None,
+                              'state_dict': optimizer.state_dict()}
         elif isinstance(optimizer, dict):
-            self.optimizer_dict = optimizer
+            opti_ctrl = optimizer
+        else:
+            raise ValueError('optimizer must be pytorch optimizer or dict!')
+        return opti_ctrl
+
+    def init_optimizer(self):
+        opti_method = getattr(torch.optim, self.opti_ctrl['method'])
+        if self.opti_ctrl['params'] is None:
+            optimizer = opti_method(params=self.Net.parameters())
+        else:
+            optimizer = opti_method(params=self.opti_ctrl['params'])
+        optimizer.load_state_dict(self.opti_ctrl['state_dict'])
+        return optimizer
 
     def set_loss_function(self):
         pass
@@ -107,7 +156,7 @@ class Training():
     def set_other_params(self):
         pass
 
-# training_real = Training(net=CNet, optimizer=optimizer_real)
+training_real = Training(Net=CNet, optimizer=optimizer_real)
 
 #
 # root = './data'
