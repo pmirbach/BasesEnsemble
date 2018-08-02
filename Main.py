@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     #TODO Take a look at argparser: What is it used for?
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     #TODO Where to put all this stuff? Datasets.py?
     # root = './data'
@@ -50,6 +50,7 @@ if __name__ == '__main__':
     # train_set_real = torchvision.datasets.MNIST(root=root, train=True, transform=transform, download=True)
     # test_set_real = torchvision.datasets.MNIST(root=root, train=False, transform=transform, download=True)
 
+    #TODO Load datasets from /raid/common
 
     path_ft = {'root': root, 'orig_data': 'processed', 'trafo_data': 'fourier', 'trafo_prefix': 'ft'}
     train_set_ft = DatasetBase(name='Fourier', path=path_ft, train=True, base_trafo=transformation_fourier,
@@ -73,14 +74,14 @@ if __name__ == '__main__':
 
     criterion = nn.CrossEntropyLoss()
 
-    flg_real = 0
-    flg_ft = 1
+    flg_real = 1
+    flg_ft = 0
     flg_ens = 0
 
     if flg_real:
         print(Net_real)
         optimizer_real = optim.SGD(Net_real.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
-        Net_real.train_Net(train_loader, 40, criterion, optimizer_real, device)
+        Net_real.train_Net(train_loader, 20, criterion, optimizer_real, device)
         pred_real = Net_real.validate_Net(test_loader, device)
 
     if flg_ft:

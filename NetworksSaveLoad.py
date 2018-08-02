@@ -4,11 +4,17 @@ from torch.utils.data import DataLoader
 from NeuralNetworks import CNNsmall, FFsmall
 import torch.optim as optim
 
+import numpy as np
+
 import torchvision
 
 import os
 import sys, inspect
 import shutil
+import time
+
+from pympler import asizeof
+
 from MyLittleHelpers import prod, sep
 
 CNet = CNNsmall([1, 28, 28])
@@ -131,17 +137,34 @@ def _params_from_ctrl(opti_ctrl, Net):
 
     return params
 
+#TODO Get this into another module (?)
+
 
 class Training():
+
+    # TODO dataloader, loss, other_params, save, memory estimator
+    # TODO dataloader
+    # TODO loss
+    # TODO other_params
+    # TODO save
+    # TODO memory estimator
+
     optim_cls = dict(inspect.getmembers(sys.modules['torch.optim'], inspect.isclass))
 
     def __init__(self, Net=None, dataloader=None, optimizer=None, loss_function=None, other_params=None):
         self.Net = Net
+
+        self.dataloader = dataloader
         self.opti_ctrl = self.set_opti_ctrl(optimizer)
-        self.optimizer = self.init_optimizer()
+        self.loss_function = loss_function
+        self.device = other_params['device']
+        self.n_epoch = other_params['n_epoch']
+        self.inp_split = other_params['inp_split']
+
+        # self.optimizer = self.init_optimizer()
 
     def set_dataloader(self):
-        print(1)
+        pass
 
     def set_opti_ctrl(self, optimizer):
         if type(optimizer).__name__ in self.optim_cls.keys():
@@ -153,12 +176,20 @@ class Training():
     def init_optimizer(self):
         opti_method = getattr(torch.optim, self.opti_ctrl['method'])
         if self.opti_ctrl['params'] is None:
-            optimizer = opti_method(params=self.Net.parameters())
+            optimizer = opti_method(params=self.Net.parameters(), lr=1e-3)
         else:
             params = _params_from_ctrl(self.opti_ctrl, self.Net)
-            optimizer = opti_method(params=params)
+            optimizer = opti_method(params=params, lr=1e-3)
         optimizer.load_state_dict(self.opti_ctrl['state_dict'])
         return optimizer
+
+    def print_opti(self):
+        print('Optimizer:')
+        dummy_optimizer = self.init_optimizer()
+        print(dummy_optimizer)
+        for i in range(len(self.opti_ctrl['params'])):
+            st = 'Parameter Group {}: {}'.format(i, self.opti_ctrl['params'][i])
+            print(st)
 
     def set_loss_function(self):
         pass
@@ -166,23 +197,87 @@ class Training():
     def set_other_params(self):
         pass
 
-training_real = Training(Net=TN, optimizer=optim.Adam(special_params, lr=1e-3))
+    def estimate_memory(self):
+        pass
 
-print(training_real.optimizer)
+    def training(self):
+        self.Net.to(self.device)
+        time_epoch = np.zeros((self.n_epoch,))
 
+        optimizer = self.init_optimizer()
+
+        print('Start Training...')
+
+        for epoch in range(self.n_epoch):
+
+            t0_epoch = time.time()
+            epoch_loss = 0
+
+            for i, data in enumerate(train_loader, start=0):
+
+                if self.inp_split is None:
+                    inputs, labels = data[0].to(self.device), data[1].to(self.device)
+                else:
+                    inputs, labels = self.inp_split(data, self.device)
+                # inputs = data[0]
+                # inputs = [inp.to(device) for inp in inputs]
+                #
+                # labels = data[1].to(device)
+
+                optimizer.zero_grad()
+                outputs = self.Net(inputs)
+                loss = self.loss_function(outputs, labels)
+                loss.backward()
+                optimizer.step()
+
+                epoch_loss += loss.item()
+
+            time_epoch[epoch] = time.time() - t0_epoch
+            time_left_est = (self.n_epoch - (epoch + 1)) * np.mean(time_epoch[time_epoch.nonzero()])
+
+            print("===> Epoch [{:2d}] / {}: Loss: {:.4f} - Approx. {:5.1f} seconds left".format(
+                epoch + 1, self.n_epoch, epoch_loss / len(train_loader), time_left_est))
+
+        print('Finished Training - Duration: {0:5.1f} seconds'.format(np.sum(time_epoch)))
+
+# training_real = Training(Net=TN, optimizer=optim.Adam(special_params, lr=1e-3))
 #
-# root = './data'
-# transform = torchvision.transforms.Compose([
-#         torchvision.transforms.ToTensor(),
-#         torchvision.transforms.Normalize(mean=(0.5, ), std=(0.5, ))
-#     ])
-#
-#
-# train_set_real = torchvision.datasets.FashionMNIST(root=root, train=True, transform=transform, download=True)
-# train_loader = DataLoader(dataset=train_set_real, batch_size=10, shuffle=True, num_workers=10)
-#
-#
-#
+# training_real.print_opti()
+
+
+
+root = './data'
+transform = torchvision.transforms.Compose([
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(mean=(0.5, ), std=(0.5, ))
+    ])
+
+
+train_set_real = torchvision.datasets.FashionMNIST(root=root, train=True, transform=transform, download=True)
+train_loader = DataLoader(dataset=train_set_real, batch_size=20, shuffle=True, num_workers=0)
+
+Net_real = CNNsmall(train_set_real[0][0].shape)
+
+sep()
+# FF = FFsmall(train_set_real[0][0].shape)
+# print(asizeof(Net_real))
+# print(asizeof.asizeof(FF), {'derive': True})
+
+for p in Net_real.parameters():
+    print(p.storage().__sizeof__())
+sep()
+
+optimizer_real = optim.SGD(Net_real.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
+
+criterion = nn.CrossEntropyLoss()
+
+other_params = {'device': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
+                'n_epoch': 20, 'inp_split': None}
+
+training = Training(Net_real, train_loader, optimizer_real, criterion, other_params)
+# training.training()
+
+
 # training_real = Training(net=CNet, dataloader=train_loader, optimizer=optimizer_real)
 #
 # print(train_loader.__dict__)
