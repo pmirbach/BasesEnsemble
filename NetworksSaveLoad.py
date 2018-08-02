@@ -9,7 +9,7 @@ import torchvision
 import os
 import sys, inspect
 import shutil
-from MyLittleHelpers import prod
+from MyLittleHelpers import prod, sep
 
 CNet = CNNsmall([1, 28, 28])
 
@@ -60,33 +60,23 @@ CNet = CNNsmall([1, 28, 28])
 class TryNet(nn.Module):
     def __init__(self):
         super(TryNet, self).__init__()
-        self.pre = nn.Sequential(nn.Linear(200, 100), nn.Linear(100, 50))
-        self.base = nn.Linear(50, 1)
+        self.pre = nn.Sequential(nn.Linear(200, 100), nn.Linear(100, 50), nn.BatchNorm1d(50))
+        self.base = nn.Linear(50, 10)
+        self.post = nn.Linear(10, 1)
 
     def forward(self, x):
         x = self.pre(x)
         x = self.base(x)
-        return x
+        return self.post(x)
+
 
 
 TN = TryNet()
 
 special_params = [{'params': TN.pre.parameters()},
-                  {'params': TN.base.parameters(), 'lr': 1e-5}
+                  {'params': TN.base.parameters(), 'lr': 1e-5},
+                  {'params': TN.post.parameters(), 'lr': 1e-7}
                   ]
-
-# optimizer_real = optim.SGD(CNet.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
-# optimizer_real = optim.Adam(CNet.parameters(), lr=1e-3)
-optimizer_real = optim.Adam(special_params, lr=1e-3)
-
-print(sys.getsizeof(optimizer_real))
-
-# print(optimizer_real)
-
-
-
-
-
 
 def fake_training(model, optimizer):
     for _ in range(2):
@@ -96,28 +86,50 @@ def fake_training(model, optimizer):
         optimizer.step()
 
 
-# fake_training(TN, optimizer_real)
-#
-#
-# opt_d = optimizer_real.state_dict()
-#
-#
-# opt2 = optim.Adam(special_params)
-#
-# print(opt2)
-#
-#
-#
-# opt2.load_state_dict(opt_d)
-#
-#
-# # print(optimizer_real)
-# #
-# # opt_d2 = optimizer_real.state_dict()
-# # print(opt_d2)
-#
-# print(**None)
 
+def _optimizer_to_ctrl(optimizer, Net):
+
+    def _create_id_name_map(Net):
+        id_name_map = {}
+        for name, param in Net.named_parameters():
+            id_name_map[id(param)] = name
+        return id_name_map
+
+    def _id_to_names(id_list, id_name_map):
+        name_list = []
+        for ida in id_list:
+            name_list.append(id_name_map[ida])
+        return name_list
+
+    id_name_map = _create_id_name_map(Net)
+
+    param_groups_names = []
+    for param in optimizer.state_dict()['param_groups']:
+        param_groups_names.append(_id_to_names(param['params'], id_name_map))
+
+    opti_ctrl = {'method': type(optimizer).__name__, 'params': param_groups_names,
+                 'state_dict': optimizer.state_dict()}
+    return opti_ctrl
+
+
+def _params_from_ctrl(opti_ctrl, Net):
+
+    def _create_name_param_map(Net):
+        name_param_map = {}
+        for name, param in Net.named_parameters():
+            name_param_map[name] = param
+        return name_param_map
+
+    def _gen_name_to_param(name_list, name_param_map):
+        for name in name_list:
+            yield name_param_map[name]
+
+    name_param_map = _create_name_param_map(Net)
+    params = []
+    for group_names in opti_ctrl['params']:
+        params.append({'params': _gen_name_to_param(group_names, name_param_map)})
+
+    return params
 
 
 class Training():
@@ -133,12 +145,9 @@ class Training():
 
     def set_opti_ctrl(self, optimizer):
         if type(optimizer).__name__ in self.optim_cls.keys():
-            opti_ctrl = {'method': type(optimizer).__name__, 'params': None,
-                              'state_dict': optimizer.state_dict()}
-        elif isinstance(optimizer, dict):
-            opti_ctrl = optimizer
+            opti_ctrl = _optimizer_to_ctrl(optimizer, self.Net)
         else:
-            raise ValueError('optimizer must be pytorch optimizer or dict!')
+            raise ValueError('optimizer must be pytorch optimizer!')
         return opti_ctrl
 
     def init_optimizer(self):
@@ -146,7 +155,8 @@ class Training():
         if self.opti_ctrl['params'] is None:
             optimizer = opti_method(params=self.Net.parameters())
         else:
-            optimizer = opti_method(params=self.opti_ctrl['params'])
+            params = _params_from_ctrl(self.opti_ctrl, self.Net)
+            optimizer = opti_method(params=params)
         optimizer.load_state_dict(self.opti_ctrl['state_dict'])
         return optimizer
 
@@ -156,7 +166,9 @@ class Training():
     def set_other_params(self):
         pass
 
-training_real = Training(Net=CNet, optimizer=optimizer_real)
+training_real = Training(Net=TN, optimizer=optim.Adam(special_params, lr=1e-3))
+
+print(training_real.optimizer)
 
 #
 # root = './data'

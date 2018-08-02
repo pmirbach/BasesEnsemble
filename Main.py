@@ -68,8 +68,8 @@ if __name__ == '__main__':
     test_loader_total = DataLoader(dataset=test_set_total, batch_size=64, shuffle=False, num_workers=10)
 
     Net_real = CNNsmall(train_set_real[0][0].shape)
-    #Net_ft = FFsmall(train_set_ft[0][0].shape)
-    Net_ft = ResNetLinear(train_set_ft[0][0].shape)
+    Net_ft = FFsmall(train_set_ft[0][0].shape)
+    # Net_ft = ResNetLinear(train_set_ft[0][0].shape)
 
     criterion = nn.CrossEntropyLoss()
 

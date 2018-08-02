@@ -238,24 +238,24 @@ class FFsmall(nn.Module):
         self.num_inp_channels, self.data_shape = _get_data_shape(inp_shape)
         self.num_flat_features = _get_get_num_flat_features(self.num_inp_channels, self.data_shape)
 
-        self.dropout = nn.Dropout(p=0.1)
+        self.dropout = nn.Dropout(p=0.2)
 
-        self.fc1 = nn.Linear(in_features=self.num_flat_features, out_features=2000, bias=False)
-        self.bn1 = nn.BatchNorm1d(num_features=2000)
+        self.fc1 = nn.Linear(in_features=self.num_flat_features, out_features=10000, bias=False)
+        self.bn1 = nn.BatchNorm1d(num_features=10000)
 
-        self.fc2 = nn.Linear(in_features=2000, out_features=2500, bias=False)
-        self.bn2 = nn.BatchNorm1d(num_features=2500)
+        self.fc2 = nn.Linear(in_features=10000, out_features=10000, bias=False)
+        self.bn2 = nn.BatchNorm1d(num_features=10000)
 
-        self.fc3 = nn.Linear(in_features=2500, out_features=3000, bias=False)
-        self.bn3 = nn.BatchNorm1d(num_features=3000)
+        self.fc3 = nn.Linear(in_features=10000, out_features=10000, bias=False)
+        self.bn3 = nn.BatchNorm1d(num_features=10000)
 
-        self.fc4 = nn.Linear(in_features=3000, out_features=3500, bias=False)
-        self.bn4 = nn.BatchNorm1d(num_features=3500)
+        self.fc4 = nn.Linear(in_features=10000, out_features=10000, bias=False)
+        self.bn4 = nn.BatchNorm1d(num_features=10000)
 
-        self.fc5 = nn.Linear(in_features=3500, out_features=4000, bias=False)
-        self.bn5 = nn.BatchNorm1d(num_features=4000)
+        self.fc5 = nn.Linear(in_features=10000, out_features=10, bias=False)
+        # self.bn5 = nn.BatchNorm1d(num_features=4000)
 
-        self.fc6 = nn.Linear(in_features=4000, out_features=10, bias=False)
+        # self.fc6 = nn.Linear(in_features=4000, out_features=10, bias=False)
         # self.bn6 = nn.BatchNorm1d(num_features=512)
 
         # self.fc7 = nn.Linear(in_features=1024, out_features=1024, bias=False)
