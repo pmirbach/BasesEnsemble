@@ -1,4 +1,5 @@
-
+import os
+import errno
 
 def prod(x_list):
     """
@@ -11,5 +12,16 @@ def prod(x_list):
         y *= x
     return y
 
+
 def sep():
     print('\n{}\n'.format('-'*70))
+
+
+def mkdir(path):
+    try:
+        os.makedirs(path)
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            pass
+        else:
+            raise

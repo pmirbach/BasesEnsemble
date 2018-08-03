@@ -11,5 +11,7 @@
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=pmirbach
 
-python3.6 Main.py
+##python3.6 Main.py
+python3.6 MemoryTest.py
 ##python3.6 NeuralNetworks.py
+

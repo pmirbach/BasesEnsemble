@@ -1,95 +1,13 @@
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
-from NeuralNetworks import CNNsmall, FFsmall
 import torch.optim as optim
 
 import numpy as np
 
-import torchvision
-
-import os
 import sys, inspect
-import shutil
 import time
 
-from pympler import asizeof
-
-from MyLittleHelpers import prod, sep
-
-CNet = CNNsmall([1, 28, 28])
-
-
-# FFNet = FFsmall([2,28,28])
-#
-# # print(CNet)
-#
-# para_ges = 0
-# for child in CNet.children():
-#     print(child)
-#     if hasattr(child, 'weight'):
-#         print(child.weight.size())
-#         print(child.weight.dtype)
-#         print(prod(child.weight.size()))
-#         para_ges += prod(child.weight.size())
-#
-# print(para_ges)
-
-
-# class Netti(nn.Module):
-#     def __init__(self):
-#         super(Netti, self).__init__()
-#
-#         self.convs = [nn.Conv2d(1, 6, 5), nn.Conv2d(6, 12, 5)]
-#
-#         self.base = [nn.Linear(120, 50), nn.Linear(50,10)]
-#
-#
-# Net = Netti()
-#
-# print(Net)
-#
-#
-#
-#
-# optim.SGD([
-#                 {'params': Net.convs.parameters()},
-#                 {'params': Net.base.parameters(), 'lr': 1e-3}
-#             ], lr=1e-2, momentum=0.9)
-#
-#
-#
-
-
-
-
-class TryNet(nn.Module):
-    def __init__(self):
-        super(TryNet, self).__init__()
-        self.pre = nn.Sequential(nn.Linear(200, 100), nn.Linear(100, 50), nn.BatchNorm1d(50))
-        self.base = nn.Linear(50, 10)
-        self.post = nn.Linear(10, 1)
-
-    def forward(self, x):
-        x = self.pre(x)
-        x = self.base(x)
-        return self.post(x)
-
-
-
-TN = TryNet()
-
-special_params = [{'params': TN.pre.parameters()},
-                  {'params': TN.base.parameters(), 'lr': 1e-5},
-                  {'params': TN.post.parameters(), 'lr': 1e-7}
-                  ]
-
-def fake_training(model, optimizer):
-    for _ in range(2):
-        optimizer.zero_grad()
-        out = model(torch.randn(200))
-        out.backward()
-        optimizer.step()
+import pickle
 
 
 
@@ -203,6 +121,9 @@ class Training():
     def estimate_memory(self):
         pass
 
+    def save_hist(self):
+        pass
+
     def training(self):
         self.Net.to(self.device)
 
@@ -253,64 +174,60 @@ class Training():
 
 
 
-root = './data'
-transform = torchvision.transforms.Compose([
+
+if __name__ == '__main__':
+    from NeuralNetworks import CNNsmall
+    from torch.utils.data import DataLoader
+    import torchvision
+
+
+    class TryNet(nn.Module):
+        def __init__(self):
+            super(TryNet, self).__init__()
+            self.pre = nn.Sequential(nn.Linear(200, 100), nn.Linear(100, 50), nn.BatchNorm1d(50))
+            self.base = nn.Linear(50, 10)
+            self.post = nn.Linear(10, 1)
+
+        def forward(self, x):
+            x = self.pre(x)
+            x = self.base(x)
+            return self.post(x)
+
+
+    TN = TryNet()
+
+    special_params = [{'params': TN.pre.parameters()},
+                      {'params': TN.base.parameters(), 'lr': 1e-5},
+                      {'params': TN.post.parameters(), 'lr': 1e-7}
+                      ]
+
+
+    def fake_training(model, optimizer):
+        for _ in range(2):
+            optimizer.zero_grad()
+            out = model(torch.randn(200))
+            out.backward()
+            optimizer.step()
+
+
+    root = './data'
+    transform = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize(mean=(0.5, ), std=(0.5, ))
+        torchvision.transforms.Normalize(mean=(0.5,), std=(0.5,))
     ])
 
+    train_set_real = torchvision.datasets.FashionMNIST(root=root, train=True, transform=transform, download=True)
+    train_loader = DataLoader(dataset=train_set_real, batch_size=20, shuffle=True, num_workers=0)
 
-train_set_real = torchvision.datasets.FashionMNIST(root=root, train=True, transform=transform, download=True)
-train_loader = DataLoader(dataset=train_set_real, batch_size=20, shuffle=True, num_workers=0)
+    Net_real = CNNsmall(train_set_real[0][0].shape)
 
-Net_real = CNNsmall(train_set_real[0][0].shape)
+    optimizer_real = optim.SGD(Net_real.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
 
-sep()
-# FF = FFsmall(train_set_real[0][0].shape)
-# print(asizeof(Net_real))
-# print(asizeof.asizeof(FF), {'derive': True})
+    criterion = nn.CrossEntropyLoss()
 
-for p in Net_real.parameters():
-    print(p.storage().__sizeof__())
-sep()
+    other_params = {'device': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
+                    'n_epoch': 20, 'inp_split': None}
 
-optimizer_real = optim.SGD(Net_real.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
+    training = Training(Net_real, train_loader, optimizer_real, criterion, other_params)
+    # training.training()
 
-criterion = nn.CrossEntropyLoss()
-
-other_params = {'device': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
-                'n_epoch': 20, 'inp_split': None}
-
-training = Training(Net_real, train_loader, optimizer_real, criterion, other_params)
-# training.training()
-
-
-# training_real = Training(net=CNet, dataloader=train_loader, optimizer=optimizer_real)
-#
-# print(train_loader.__dict__)
-# # print(train_loader.shuffle)
-#
-# print('\n\n')
-#
-# loader = getattr(torchvision.datasets, 'MNIST')
-# loader_dict = {'dataset': train_set_real, 'batch_size': 10, 'shuffle': True, 'num_workers': 10}
-#
-# trainer2 = loader(**loader_dict)
-
-
-#
-# def save_checkpoint(state, is_best, save_path, filename):
-#   filename = os.path.join(save_path, filename)
-#   torch.save(state, filename)
-#   if is_best:
-#     bestname = os.path.join(save_path, 'model_best.pth.tar')
-#     shutil.copyfile(filename, bestname)
-#
-# torch.save(net.state_dict(),model_save_path + '_.pth')
-#
-# save_checkpoint({
-#           'epoch': epoch + 1,
-#           # 'arch': args.arch,
-#           'state_dict': net.state_dict(),
-#           'optimizer': optimizer.state_dict(),
-#         }, is_best, mPath ,  str(val_acc) + '_' + str(val_los) + "_" + str(epoch) + '_checkpoint.pth.tar')

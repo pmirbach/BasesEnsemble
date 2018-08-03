@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from NeuralNetworks import CNNsmall, FFsmall, EnsembleMLP, ResNetLinear
 from Transformations import transformation_fourier, normalize_linear
 from Datasets import DatasetBase, MyStackedDataset
+from TrainValidateTest import Training
 
 
 import torchvision
@@ -12,6 +13,8 @@ import torchvision
 import torch.optim as optim
 
 import numpy as np
+
+from MyLittleHelpers import mkdir
 
 import time
 
@@ -74,9 +77,16 @@ if __name__ == '__main__':
 
     criterion = nn.CrossEntropyLoss()
 
-    flg_real = 1
+    flg_real = 0
     flg_ft = 0
     flg_ens = 0
+
+    optimizer_real = optim.SGD(Net_real.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
+    other_params = {'device': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
+                    'n_epoch': 20, 'inp_split': None}
+    train = Training(Net_real, train_loader, optimizer_real, criterion, other_params)
+    train.training()
+    print(train.train_hist)
 
     if flg_real:
         print(Net_real)
@@ -101,13 +111,7 @@ if __name__ == '__main__':
 
         #TODO Make little Helper:
         model_path = r'./results/models'
-        try:
-            os.makedirs(model_path)
-        except OSError as e:
-            if e.errno == errno.EEXIST:
-                pass
-            else:
-                raise
+        mkdir(model_path)
 
         #TODO Create a NN Save Load module: Models, Trainstatus, ...
         # file_name = 'FF_fourier_trained.pt'
