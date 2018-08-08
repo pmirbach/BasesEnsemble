@@ -83,8 +83,10 @@ if __name__ == '__main__':
 
     optimizer_real = optim.SGD(Net_real.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
     other_params = {'device': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
-                    'n_epoch': 20, 'inp_split': None}
-    train = Training(Net_real, train_loader, optimizer_real, criterion, other_params)
+                    'n_epoch': 1000, 'inp_split': None}
+
+    train = Training(Net_real, train_loader, test_loader, optimizer_real, criterion, other_params)
+
     train.training()
     print(train.train_hist)
 

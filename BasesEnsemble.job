@@ -3,7 +3,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --job-name="ftResNet"
 #SBATCH --ntasks=10
-#SBATCH --mem=64G
+#SBATCH --mem=128G
 #SBATCH --time=2-00:00
 ##SBATCH --time=0-00:10
 #SBATCH --output=./reports/slurm.%j.out
@@ -11,7 +11,6 @@
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=pmirbach
 
-##python3.6 Main.py
-python3.6 MemoryTest.py
+python3.6 Main.py
+##python3.6 MemoryTest.py
 ##python3.6 NeuralNetworks.py
-

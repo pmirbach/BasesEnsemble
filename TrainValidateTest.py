@@ -4,10 +4,65 @@ import torch.optim as optim
 
 import numpy as np
 
-import sys, inspect
+import sys, inspect, copy
 import time
 
 import pickle
+
+
+
+class Timer():
+
+    def __init__(self):
+        self.step_times = []
+        self.start()
+
+    def start(self):
+        self.start_time = self.last_timestamp = time.time()
+
+    def step(self):
+        self.step_times.append(time.time() - self.last_timestamp)
+        self.last_timestamp = time.time()
+
+    def get_avg_time(self, num_avg=5):
+        return np.mean(self.step_times[-num_avg:])
+
+    def get_total_time(self):
+        return time.time() - self.last_timestamp
+
+
+
+
+
+
+
+
+def train_model(model, dataloaders, criterion, optimizer, device, scheduler=None, num_epochs=25):
+
+    timer_train = Timer()
+    best_model_weights = copy.deepcopy(model.state_dict())
+    best_acc = 0.0
+
+    disp_epoch = 'Epoch {f}/{f}'.format(f='{:' + str(len(str(num_epochs))) + 'd}')
+
+    for epoch in range(num_epochs):
+        print(disp_epoch.format(epoch+1, num_epochs), end='', flush=True)
+
+        for phase in ['train', 'valid']:
+            if phase == 'train':
+                model.train()
+            elif phase == 'valid':
+                model.eval()
+
+            running_loss = 0.0
+            running_corrects = 0
+
+            for i, data in enumerate(dataloaders[phase]):
+                inputs, labels = data[0].to(device), data[1].to(device)
+
+    pass
+
+
 
 
 
@@ -57,6 +112,9 @@ def _params_from_ctrl(opti_ctrl, Net):
 
 #TODO Get this into another module (?)
 
+def train_epoch():
+    pass
+
 
 class Training():
 
@@ -69,18 +127,20 @@ class Training():
 
     optim_cls = dict(inspect.getmembers(sys.modules['torch.optim'], inspect.isclass))
 
-    def __init__(self, Net=None, dataloader=None, optimizer=None, loss_function=None, other_params=None):
+    def __init__(self, Net=None, dataloader=None, validloader=None, optimizer=None, loss_function=None, other_params=None):
         self.Net = Net
 
         self.dataloader = dataloader
         self.opti_ctrl = self.set_opti_ctrl(optimizer)
         self.loss_function = loss_function
 
+        self.validloader = validloader
+
         self.device = other_params['device']
         self.n_epoch = other_params['n_epoch']
         self.inp_split = other_params['inp_split']
 
-        self.train_hist = {'time_hist': [], 'loss_hist': []}
+        self.train_hist = {'time_hist': [], 'loss_hist': [], 'valid_hist': []}
         # self.train_state = {'time': [], 'loss': [], 'validation_error': []}
 
 
@@ -127,14 +187,15 @@ class Training():
     def training(self):
         self.Net.to(self.device)
 
-        # TODO Better solution for Timer
-        time_epoch = np.zeros((self.n_epoch,))
-
         optimizer = self.init_optimizer()
 
         print('Start Training...')
 
+        best_pred = 0.0
+
         for epoch in range(self.n_epoch):
+
+            self.Net.train()
 
             t0_epoch = time.time()
             epoch_loss = 0
@@ -159,17 +220,48 @@ class Training():
                 epoch_loss += loss.item()
 
 
+
+            self.Net.eval()
+            for i in enumerate(self.validloader, start=0):
+                num_images = len(self.validloader.dataset)
+                batchsize = self.validloader.batch_size
+
+                res = np.zeros(num_images)
+
+                with torch.no_grad():
+                    for i, data in enumerate(self.validloader):
+
+                        inputs, labels = data[0].to(self.device), data[1].to(self.device)
+
+                        outputs = self.Net(inputs)
+                        _, predicted = torch.max(outputs.data, 1)
+
+                        comp = predicted == labels
+
+                        try:
+                            res[i * batchsize: (i + 1) * batchsize] = comp
+                        except ValueError:
+                            res[-comp.shape[0]:] = comp
+
+                pred = 100 * np.sum(res) / num_images
+                # print('Accuracy of the network on the {} test images: {} %'.format(num_images,
+                #                                                                    100 * np.sum(res) / num_images))
+
+
             self.train_hist['time_hist'].append(time.time() - t0_epoch)
             mean_time = np.mean(self.train_hist['time_hist'][-5:])
             time_left_est = (self.n_epoch - (epoch + 1)) * mean_time
 
             self.train_hist['loss_hist'].append(epoch_loss / len(self.dataloader))
 
+            self.train_hist['valid_hist'].append(pred)
 
-            print("===> Epoch [{:2d}] / {}: Loss: {:.4f} - Approx. {:5.1f} seconds left".format(
-                epoch + 1, self.n_epoch, self.train_hist['loss_hist'][-1], time_left_est))
+            print("===> Epoch [{:2d}] / {}: Loss: {:.4f} - Valid: {:5.2f} - Approx. {:5.1f} seconds left".format(
+                epoch + 1, self.n_epoch,
+                self.train_hist['loss_hist'][-1],
+                self.train_hist['valid_hist'][-1], time_left_est))
 
-        print('Finished Training - Duration: {0:5.1f} seconds'.format(np.sum(time_epoch)))
+        print('Finished Training - Duration: {0:5.1f} seconds'.format(np.sum(self.train_hist['time_hist'])))
 
 
 
