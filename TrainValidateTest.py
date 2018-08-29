@@ -7,33 +7,57 @@ import numpy as np
 import sys, inspect, copy
 import time
 
+import os, psutil
+
+from MyLittleHelpers import display_time, Timer, LossAccStats
+
 import pickle
 
 
 
-class Timer():
 
-    def __init__(self):
-        self.step_times = []
-        self.start()
+class TrainStats():
 
-    def start(self):
-        self.start_time = self.last_timestamp = time.time()
+    def __init__(self, datasize):
+        self.running_loss = 0.0
+        self.running_corrects = 0
+        self.datasize = datasize
 
-    def step(self):
-        self.step_times.append(time.time() - self.last_timestamp)
-        self.last_timestamp = time.time()
-
-    def get_avg_time(self, num_avg=5):
-        return np.mean(self.step_times[-num_avg:])
-
-    def get_total_time(self):
-        return time.time() - self.last_timestamp
+    def update(self, batch_loss=0.0, corrects=0):
+        self.running_loss += batch_loss
+        self.running_corrects += corrects
 
 
 
 
+def train_epoch(model, dataloader, criterion, optimizer, device):
+    model.train()
 
+    running_loss = 0.0
+    running_corrects = 0
+
+    for i, data in enumerate(dataloader):
+        inputs, labels = data[0].to(device), data[1].to(device)
+        optimizer.zero_grad()
+
+        outputs = model(inputs)
+        _, preds = torch.max(outputs, 1)
+        loss = criterion(outputs, labels)
+
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item() * inputs.size(0)
+        running_corrects += torch.sum(preds == labels.data)
+
+    epoch_loss = running_loss / len(dataloader)
+    epoch_acc = running_corrects.double() / len(dataloader)
+
+    return epoch_loss, epoch_acc
+
+
+def valid_epoch(model, dataloader, device):
+    model.eval()
 
 
 
@@ -42,6 +66,7 @@ def train_model(model, dataloaders, criterion, optimizer, device, scheduler=None
     timer_train = Timer()
     best_model_weights = copy.deepcopy(model.state_dict())
     best_acc = 0.0
+
 
     disp_epoch = 'Epoch {f}/{f}'.format(f='{:' + str(len(str(num_epochs))) + 'd}')
 
@@ -187,6 +212,9 @@ class Training():
     def training(self):
         self.Net.to(self.device)
 
+        pid = os.getpid()
+        py = psutil.Process(pid)
+
         optimizer = self.init_optimizer()
 
         print('Start Training...')
@@ -219,31 +247,35 @@ class Training():
 
                 epoch_loss += loss.item()
 
-
+            memoryUse = py.memory_info()[0] / 2. ** 30  # memory use in GB...I think
+            print('memory use:', memoryUse)
 
             self.Net.eval()
-            for i in enumerate(self.validloader, start=0):
-                num_images = len(self.validloader.dataset)
-                batchsize = self.validloader.batch_size
 
-                res = np.zeros(num_images)
+            num_images = len(self.validloader.dataset)
+            batchsize = self.validloader.batch_size
 
-                with torch.no_grad():
-                    for i, data in enumerate(self.validloader):
+            res = np.zeros(num_images)
 
-                        inputs, labels = data[0].to(self.device), data[1].to(self.device)
+            with torch.no_grad():
+                for i, data in enumerate(self.validloader):
 
-                        outputs = self.Net(inputs)
-                        _, predicted = torch.max(outputs.data, 1)
+                    inputs, labels = data[0].to(self.device), data[1].to(self.device)
 
-                        comp = predicted == labels
+                    outputs = self.Net(inputs)
+                    _, predicted = torch.max(outputs.data, 1)
 
-                        try:
-                            res[i * batchsize: (i + 1) * batchsize] = comp
-                        except ValueError:
-                            res[-comp.shape[0]:] = comp
+                    comp = predicted == labels
 
-                pred = 100 * np.sum(res) / num_images
+                    try:
+                        res[i * batchsize: (i + 1) * batchsize] = comp
+                    except ValueError:
+                        res[-comp.shape[0]:] = comp
+
+            memoryUse = py.memory_info()[0] / 2. ** 30  # memory use in GB...I think
+            print('memory use:', memoryUse)
+
+            pred = 100 * np.sum(res) / num_images
                 # print('Accuracy of the network on the {} test images: {} %'.format(num_images,
                 #                                                                    100 * np.sum(res) / num_images))
 

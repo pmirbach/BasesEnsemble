@@ -19,6 +19,8 @@ from MyLittleHelpers import mkdir
 import time
 
 import os
+import psutil
+
 import pickle
 import errno
 
@@ -64,8 +66,8 @@ if __name__ == '__main__':
     train_set_total = MyStackedDataset([train_set_real, train_set_ft])
     test_set_total = MyStackedDataset([test_set_real, test_set_ft])
 
-    train_loader = DataLoader(dataset=train_set_real, batch_size=flg_batchsize, shuffle=True, num_workers=10)
-    test_loader = DataLoader(dataset=test_set_real, batch_size=flg_batchsize, shuffle=False, num_workers=10)
+    train_loader = DataLoader(dataset=train_set_real, batch_size=flg_batchsize, shuffle=True, num_workers=0)
+    test_loader = DataLoader(dataset=test_set_real, batch_size=flg_batchsize, shuffle=False, num_workers=0)
     train_loader_ft = DataLoader(dataset=train_set_ft, batch_size=flg_batchsize, shuffle=True, num_workers=10)
     test_loader_ft = DataLoader(dataset=test_set_ft, batch_size=flg_batchsize, shuffle=False, num_workers=10)
     train_loader_total = DataLoader(dataset=train_set_total, batch_size=64, shuffle=True, num_workers=10)
@@ -83,9 +85,18 @@ if __name__ == '__main__':
 
     optimizer_real = optim.SGD(Net_real.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
     other_params = {'device': torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
-                    'n_epoch': 1000, 'inp_split': None}
+                    'n_epoch': 50, 'inp_split': None}
 
     train = Training(Net_real, train_loader, test_loader, optimizer_real, criterion, other_params)
+
+    print(psutil.__version__)
+    # print(psutil.cpu_percent())
+    # print(psutil.virtual_memory())
+
+    pid = os.getpid()
+    py = psutil.Process(pid)
+    memoryUse = py.memory_info()[0] / 2. ** 30  # memory use in GB...I think
+    print('memory use:', memoryUse)
 
     train.training()
     print(train.train_hist)
