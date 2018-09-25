@@ -12,12 +12,12 @@ hyper_params = {
     "num_layers": 2,
     "num_classes": 10,
     "batch_size": 100,
-    "num_epochs": 2,
+    "num_epochs": 12,
     "learning_rate": 0.01
 }
 
 
-experiment = Experiment(api_key="OVQS3oV9NWovAYo1A1S5s97kY", project_name="general", workspace="philip")
+experiment = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L", project_name="general", workspace="pmirbach")
 experiment.log_multiple_params(hyper_params)
 
 

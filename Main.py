@@ -1,37 +1,57 @@
 import torch
 import torch.nn as nn
+import torch.optim as optim
 from torch.utils.data import DataLoader
+
+import numpy as np
+import torchvision
+from torchvision import transforms as transforms
 
 from NeuralNetworks import CNNsmall, FFsmall, EnsembleMLP, ResNetLinear
 from Transformations import transformation_fourier, normalize_linear
 from Datasets import DatasetBase, MyStackedDataset
 from TrainValidateTest import Training
 
-
-import torchvision
-
-import torch.optim as optim
-
-import numpy as np
-
 from MyLittleHelpers import mkdir
 
-import time
-
-import os
-import psutil
-
+import time, os, copy
+import psutil, errno
 import pickle
-import errno
+
+print('PyTorch Version: {}\nTorchvision Version: {}'.format(torch.__version__, torchvision.__version__))
+
+phases = ['train', 'val', 'test']
+
+
+data_dir = './data/fashion_mnist/'
+data_transforms = {'train': transforms.Compose([transforms.ToTensor(),
+                                                transforms.Normalize(mean=(0.5,), std=(0.5,))]),
+                   'test': transforms.Compose([transforms.ToTensor(),
+                                               transforms.Normalize(mean=(0.5,), std=(0.5,))])
+                   }
+
+dset_training = torchvision.datasets.FashionMNIST(root=data_dir, train=True,
+                                                  transform=data_transforms['train'], download=True)
+train_size = int(len(dset_training) * 0.9)
+val_size = len(dset_training) - train_size
+
+image_datasets = {}
+image_datasets['train'], image_datasets['val'] = torch.utils.data.random_split(dset_training, [train_size, val_size])
+image_datasets['test'] = torchvision.datasets.FashionMNIST(root=data_dir, train=False,
+                                                           transform=data_transforms['test'], download=True)
+
+dataloaders = {x: DataLoader(image_datasets[x], batch_size=64, shuffle=True) for x in phases}
+
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+Net = CNNsmall(inp_shape=image_datasets['train'][0][0].shape)
 
 
 
 
-
-
-
-
-if __name__ == '__main__':
+if __name__ == '__main__2':
 
     flg_batchsize = 64
 

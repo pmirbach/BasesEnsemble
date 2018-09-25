@@ -15,6 +15,18 @@ import pickle
 
 
 
+def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
+    timer_train = Timer()
+
+
+
+
+
+
+
+
+
+
 
 class TrainStats():
 
