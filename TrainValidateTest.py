@@ -15,12 +15,64 @@ import pickle
 
 
 
-def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
-    timer_train = Timer()
+def train_model(model, dataloaders, criterion, optimizer, scheduler, device, num_epochs=25):
+    # timer_train = Timer()
+    since = time.time()
 
+    best_model_wts = copy.deepcopy(model.state_dict())
+    best_acc = 0.0
 
+    disp_epoch = 'Epoch {f}/{f}'.format(f='{:' + str(len(str(num_epochs))) + 'd}')
 
+    for epoch in range(num_epochs):
+        print(disp_epoch.format(epoch + 1, num_epochs), end='', flush=True)
 
+        # for phase in ['train', 'val']:
+        #     if phase == 'train':
+        #         scheduler.step()
+        #         model.train()
+        #     else:
+        #         model.eval()
+        #
+        #     running_loss = 0.0
+        #     running_corrects = 0
+        #
+        #     for inputs, labels in dataloaders[phase]:
+        #         inputs = inputs.to(device)
+        #         labels = labels.to(device)
+        #
+        #         optimizer.zero_grad()
+        #
+        #         with torch.set_grad_enabled(phase == 'train'):
+        #             outputs = model(inputs)
+        #             _, preds = torch.max(outputs, 1)
+        #             loss = criterion(outputs, labels)
+        #
+        #             if phase == 'train':
+        #                 loss.backward()
+        #                 optimizer.step()
+        #
+        #         running_loss += loss.item() * inputs.size(0)
+        #         running_corrects += torch.sum(preds == labels.data)
+        #
+        #     epoch_loss = running_loss / len(dataloaders[phase])
+        #     epoch_acc = running_corrects / len(dataloaders[phase])
+        #
+        #     print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
+        #
+        #     if phase == 'val' and epoch_acc > best_acc:
+        #         best_model_wts = copy.deepcopy(model.state_dict())
+        #
+        # print()
+
+    time_elapsed = time.time() - since
+    print('Training complete in {:.0f}m {:.0f}s'.format(
+        time_elapsed // 60, time_elapsed % 60))
+    # print('Best val Acc: {:4f}'.format(best_acc))
+
+    # load best model weights
+    model.load_state_dict(best_model_wts)
+    return model
 
 
 
@@ -72,33 +124,33 @@ def valid_epoch(model, dataloader, device):
     model.eval()
 
 
-
-def train_model(model, dataloaders, criterion, optimizer, device, scheduler=None, num_epochs=25):
-
-    timer_train = Timer()
-    best_model_weights = copy.deepcopy(model.state_dict())
-    best_acc = 0.0
-
-
-    disp_epoch = 'Epoch {f}/{f}'.format(f='{:' + str(len(str(num_epochs))) + 'd}')
-
-    for epoch in range(num_epochs):
-        print(disp_epoch.format(epoch+1, num_epochs), end='', flush=True)
-
-        for phase in ['train', 'valid']:
-            if phase == 'train':
-                model.train()
-            elif phase == 'valid':
-                model.eval()
-
-            running_loss = 0.0
-            running_corrects = 0
-
-            for i, data in enumerate(dataloaders[phase]):
-                inputs, labels = data[0].to(device), data[1].to(device)
-
-    pass
-
+#
+# def train_model(model, dataloaders, criterion, optimizer, device, scheduler=None, num_epochs=25):
+#
+#     timer_train = Timer()
+#     best_model_weights = copy.deepcopy(model.state_dict())
+#     best_acc = 0.0
+#
+#
+#     disp_epoch = 'Epoch {f}/{f}'.format(f='{:' + str(len(str(num_epochs))) + 'd}')
+#
+#     for epoch in range(num_epochs):
+#         print(disp_epoch.format(epoch+1, num_epochs), end='', flush=True)
+#
+#         for phase in ['train', 'valid']:
+#             if phase == 'train':
+#                 model.train()
+#             elif phase == 'valid':
+#                 model.eval()
+#
+#             running_loss = 0.0
+#             running_corrects = 0
+#
+#             for i, data in enumerate(dataloaders[phase]):
+#                 inputs, labels = data[0].to(device), data[1].to(device)
+#
+#     pass
+#
 
 
 

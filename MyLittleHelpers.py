@@ -97,12 +97,13 @@ class Timer():
     def step(self):
         self.step_times.append(time.time() - self.last_timestamp)
         self.last_timestamp = time.time()
+        return self.step_times[-1]
 
     def get_avg_time(self, num_avg=5):
         return np.mean(self.step_times[-num_avg:])
 
     def get_total_time(self):
-        return time.time() - self.last_timestamp
+        return self.last_timestamp - self.start_time
 
 
 if __name__ == '__main__':

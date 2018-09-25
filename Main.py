@@ -10,7 +10,7 @@ from torchvision import transforms as transforms
 from NeuralNetworks import CNNsmall, FFsmall, EnsembleMLP, ResNetLinear
 from Transformations import transformation_fourier, normalize_linear
 from Datasets import DatasetBase, MyStackedDataset
-from TrainValidateTest import Training
+from TrainValidateTest import Training, train_model
 
 from MyLittleHelpers import mkdir
 
@@ -47,7 +47,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 Net = CNNsmall(inp_shape=image_datasets['train'][0][0].shape)
+Net.to(device)
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
 
+train_model(Net, dataloaders, criterion, optimizer, 1, device, num_epochs=30)
 
 
 
