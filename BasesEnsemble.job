@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #SBATCH --gres=gpu:1
-#SBATCH --job-name="cometML"
+#SBATCH --job-name="adLR"
 #SBATCH --ntasks=10
 #SBATCH --mem=16G
 #SBATCH --time=2-00:00
@@ -11,6 +11,6 @@
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=pmirbach
 
-##python3.6 Main.py
-python3.6 comet_ml_test.py
+python3.6 Main.py
+##python3.6 comet_ml_test.py
 ##python3.6 NeuralNetworks.py

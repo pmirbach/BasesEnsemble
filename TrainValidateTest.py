@@ -16,58 +16,67 @@ import pickle
 
 
 def train_model(model, dataloaders, criterion, optimizer, scheduler, device, num_epochs=25):
-    # timer_train = Timer()
-    since = time.time()
+    timer = Timer(['train', 'val'])
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
 
     disp_epoch = 'Epoch {f}/{f}'.format(f='{:' + str(len(str(num_epochs))) + 'd}')
+    disp_phase_stats = ' - {}: [{:.4f}, {:.3f}%]'
+    disp_time_remaining = ' - Approx. time left: {}'
 
     for epoch in range(num_epochs):
         print(disp_epoch.format(epoch + 1, num_epochs), end='', flush=True)
 
-        # for phase in ['train', 'val']:
-        #     if phase == 'train':
-        #         scheduler.step()
-        #         model.train()
-        #     else:
-        #         model.eval()
-        #
-        #     running_loss = 0.0
-        #     running_corrects = 0
-        #
-        #     for inputs, labels in dataloaders[phase]:
-        #         inputs = inputs.to(device)
-        #         labels = labels.to(device)
-        #
-        #         optimizer.zero_grad()
-        #
-        #         with torch.set_grad_enabled(phase == 'train'):
-        #             outputs = model(inputs)
-        #             _, preds = torch.max(outputs, 1)
-        #             loss = criterion(outputs, labels)
-        #
-        #             if phase == 'train':
-        #                 loss.backward()
-        #                 optimizer.step()
-        #
-        #         running_loss += loss.item() * inputs.size(0)
-        #         running_corrects += torch.sum(preds == labels.data)
-        #
-        #     epoch_loss = running_loss / len(dataloaders[phase])
-        #     epoch_acc = running_corrects / len(dataloaders[phase])
-        #
-        #     print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
-        #
-        #     if phase == 'val' and epoch_acc > best_acc:
-        #         best_model_wts = copy.deepcopy(model.state_dict())
-        #
-        # print()
+        for phase in ['train', 'val']:
+            if phase == 'train':
+                # scheduler.step()
+                model.train()
+            else:
+                model.eval()
 
-    time_elapsed = time.time() - since
-    print('Training complete in {:.0f}m {:.0f}s'.format(
-        time_elapsed // 60, time_elapsed % 60))
+            running_loss, running_acc = 0.0, 0.0
+            running_corrects, running_total = 0, 0
+
+            for inputs, labels in dataloaders[phase]:
+                num_inp = inputs.size(0)
+
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+
+                optimizer.zero_grad()
+
+                with torch.set_grad_enabled(phase == 'train'):
+                    outputs = model(inputs)
+                    _, preds = torch.max(outputs, 1)
+                    loss = criterion(outputs, labels)
+
+                    if phase == 'train':
+                        loss.backward()
+                        optimizer.step()
+
+                running_loss += loss.item() * num_inp
+
+                running_total += num_inp
+                running_corrects += torch.sum(preds == labels.data).item()
+                running_acc = running_corrects / running_total * 100
+
+            epoch_loss = running_loss / len(dataloaders[phase].dataset)
+            epoch_acc = running_corrects / len(dataloaders[phase].dataset) * 100
+
+            print(disp_phase_stats.format(phase.title(), epoch_loss, epoch_acc), end='', flush=True)
+
+            if phase == 'val' and epoch_acc > best_acc:
+                best_model_wts = copy.deepcopy(model.state_dict())
+
+            timer.step(phase)
+
+        time_estimate = timer.get_avg_time_all(num_avg=5) * (num_epochs - (epoch + 1))
+        print(disp_time_remaining.format(display_time(time_estimate)))
+
+    # time_elapsed = 3
+    # print('Training complete in {:.0f}m {:.0f}s'.format(
+    #     time_elapsed // 60, time_elapsed % 60))
     # print('Best val Acc: {:4f}'.format(best_acc))
 
     # load best model weights

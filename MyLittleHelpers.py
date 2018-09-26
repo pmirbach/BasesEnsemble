@@ -31,6 +31,8 @@ def mkdir(path):
 
 def display_time(seconds):
 
+    seconds = int(np.round(seconds))
+
     intervals = (
         ('d', 86400),  # 60 * 60 * 24
         ('h', 3600),  # 60 * 60
@@ -87,26 +89,74 @@ class LossAccStats():
 
 class Timer():
 
-    def __init__(self):
-        self.step_times = []
+    def __init__(self, names=['main']):
+
+        self.step_times = {x: [] for x in names}
+        self.num_timers = len(names)
+
+        self.start_time = None
         self.start()
 
     def start(self):
-        self.start_time = self.last_timestamp = time.time()
+        if self.start_time is None:
+            self.start_time = time.time()
 
-    def step(self):
-        self.step_times.append(time.time() - self.last_timestamp)
         self.last_timestamp = time.time()
-        return self.step_times[-1]
 
-    def get_avg_time(self, num_avg=5):
-        return np.mean(self.step_times[-num_avg:])
+    def step(self, name='main'):
+        time_diff = time.time() - self.last_timestamp
+        self.step_times[name].append(time_diff)
 
-    def get_total_time(self):
-        return self.last_timestamp - self.start_time
+        self.last_timestamp = time.time()
+        return time_diff
+
+
+    def get_avg_time(self, num_avg=5, name='main'):
+
+        step_times = self.step_times[name]
+        return np.mean(step_times[-num_avg:])
+
+    def get_avg_time_all(self, num_avg=5):
+        out = 0.0
+        for name in self.step_times:
+            out += self.get_avg_time(num_avg=num_avg, name=name)
+        return out
+
+    def get_total_time(self, name='main'):
+        return np.sum(self.step_times[name])
+
+    def get_total_time_all(self):
+        out = 0.0
+        for name in self.step_times:
+            out += self.get_total_time(name=name)
+        return out
 
 
 if __name__ == '__main__':
 
-    print(display_time(45615604540))
+    phases = ['train', 'val']
+    test_timer = Timer(phases)
 
+    test_timer.start()
+    for i in range(8):
+        for phase in phases:
+            if phase == 'train':
+                time.sleep(1.5)
+            else:
+                time.sleep(1.2)
+            test_timer.step(phase)
+
+    print('avg_train_5: {}'.format(display_time(test_timer.get_avg_time(num_avg=5, name='train'))))
+    print('avg_val_5: {}'.format(display_time(test_timer.get_avg_time(num_avg=5, name='val'))))
+    print('avg_all_5: {}'.format(display_time(test_timer.get_avg_time_all(num_avg=5))))
+
+    print('total_train: {}'.format(display_time(test_timer.get_total_time(name='train'))))
+    print('total_val: {}'.format(display_time(test_timer.get_total_time(name='val'))))
+    print('total_all: {}'.format(display_time(test_timer.get_total_time_all())))
+
+
+
+
+
+    print()
+    # print(display_time(1.5))

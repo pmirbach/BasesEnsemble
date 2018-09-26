@@ -23,16 +23,19 @@ print('PyTorch Version: {}\nTorchvision Version: {}'.format(torch.__version__, t
 phases = ['train', 'val', 'test']
 
 
-data_dir = './data/fashion_mnist/'
+# data_dir = './data/fashion_mnist/'
+data_dir = './data'
 data_transforms = {'train': transforms.Compose([transforms.ToTensor(),
                                                 transforms.Normalize(mean=(0.5,), std=(0.5,))]),
                    'test': transforms.Compose([transforms.ToTensor(),
                                                transforms.Normalize(mean=(0.5,), std=(0.5,))])
                    }
 
-dset_training = torchvision.datasets.FashionMNIST(root=data_dir, train=True,
+dset_training = torchvision.datasets.MNIST(root=data_dir, train=True,
                                                   transform=data_transforms['train'], download=True)
-train_size = int(len(dset_training) * 0.9)
+# dset_training = torchvision.datasets.FashionMNIST(root=data_dir, train=True,
+#                                                   transform=data_transforms['train'], download=True)
+train_size = int(len(dset_training) * 0.8)
 val_size = len(dset_training) - train_size
 
 image_datasets = {}
@@ -40,7 +43,7 @@ image_datasets['train'], image_datasets['val'] = torch.utils.data.random_split(d
 image_datasets['test'] = torchvision.datasets.FashionMNIST(root=data_dir, train=False,
                                                            transform=data_transforms['test'], download=True)
 
-dataloaders = {x: DataLoader(image_datasets[x], batch_size=64, shuffle=True) for x in phases}
+dataloaders = {x: DataLoader(image_datasets[x], batch_size=128, shuffle=True) for x in phases}
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -51,7 +54,7 @@ Net.to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
 
-train_model(Net, dataloaders, criterion, optimizer, 1, device, num_epochs=30)
+train_model(Net, dataloaders, criterion, optimizer, 1, device, num_epochs=20)
 
 
 
