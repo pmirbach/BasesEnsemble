@@ -13,12 +13,30 @@ from Datasets import DatasetBase, MyStackedDataset
 from TrainValidateTest import Training, train_model
 
 from MyLittleHelpers import mkdir
+from comet_ml import Experiment
 
 import time, os, copy
 import psutil, errno
 import pickle
 
 print('PyTorch Version: {}\nTorchvision Version: {}'.format(torch.__version__, torchvision.__version__))
+
+experiment = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L", project_name="adaptive learning rate", workspace="pmirbach")
+
+
+hyper_params = {
+    # "sequence_length": 28,
+    # "input_size": 28,
+    # "hidden_size": 128,
+    # "num_layers": 2,
+    # "num_classes": 10,
+    "batch_size": 128,
+    # "num_epochs": 12,
+    # "learning_rate": 0.01
+}
+
+experiment.log_multiple_params(hyper_params)
+
 
 phases = ['train', 'val', 'test']
 
@@ -54,7 +72,7 @@ Net.to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
 
-train_model(Net, dataloaders, criterion, optimizer, 1, device, num_epochs=20)
+train_model(Net, dataloaders, criterion, optimizer, 1, device, num_epochs=80)
 
 
 

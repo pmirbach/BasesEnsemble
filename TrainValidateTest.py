@@ -17,6 +17,7 @@ import pickle
 
 def train_model(model, dataloaders, criterion, optimizer, scheduler, device, num_epochs=25):
     timer = Timer(['train', 'val'])
+    stats = {x: LossAccStats(len(dataloaders[x].dataset)) for x in ['train', 'val']}
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
@@ -35,8 +36,7 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, device, num
             else:
                 model.eval()
 
-            running_loss, running_acc = 0.0, 0.0
-            running_corrects, running_total = 0, 0
+            stats[phase].reset()
 
             for inputs, labels in dataloaders[phase]:
                 num_inp = inputs.size(0)
@@ -55,29 +55,23 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, device, num
                         loss.backward()
                         optimizer.step()
 
-                running_loss += loss.item() * num_inp
+                stats[phase].update(loss.item(), torch.sum(preds == labels.data).item(), num_inp)
+                step_loss, step_acc = stats[phase].get_stats()
 
-                running_total += num_inp
-                running_corrects += torch.sum(preds == labels.data).item()
-                running_acc = running_corrects / running_total * 100
-
-            epoch_loss = running_loss / len(dataloaders[phase].dataset)
-            epoch_acc = running_corrects / len(dataloaders[phase].dataset) * 100
-
+            epoch_loss, epoch_acc = stats[phase].get_stats_epoch()
             print(disp_phase_stats.format(phase.title(), epoch_loss, epoch_acc), end='', flush=True)
 
             if phase == 'val' and epoch_acc > best_acc:
                 best_model_wts = copy.deepcopy(model.state_dict())
+                best_acc = epoch_acc
 
             timer.step(phase)
 
         time_estimate = timer.get_avg_time_all(num_avg=5) * (num_epochs - (epoch + 1))
         print(disp_time_remaining.format(display_time(time_estimate)))
 
-    # time_elapsed = 3
-    # print('Training complete in {:.0f}m {:.0f}s'.format(
-    #     time_elapsed // 60, time_elapsed % 60))
-    # print('Best val Acc: {:4f}'.format(best_acc))
+    time_elapsed = timer.total_time()
+    print('Training complete in {} - Best val Acc: {:4f}'.format(display_time(time_elapsed), best_acc))
 
     # load best model weights
     model.load_state_dict(best_model_wts)
@@ -85,52 +79,6 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, device, num
 
 
 
-
-
-
-
-class TrainStats():
-
-    def __init__(self, datasize):
-        self.running_loss = 0.0
-        self.running_corrects = 0
-        self.datasize = datasize
-
-    def update(self, batch_loss=0.0, corrects=0):
-        self.running_loss += batch_loss
-        self.running_corrects += corrects
-
-
-
-
-def train_epoch(model, dataloader, criterion, optimizer, device):
-    model.train()
-
-    running_loss = 0.0
-    running_corrects = 0
-
-    for i, data in enumerate(dataloader):
-        inputs, labels = data[0].to(device), data[1].to(device)
-        optimizer.zero_grad()
-
-        outputs = model(inputs)
-        _, preds = torch.max(outputs, 1)
-        loss = criterion(outputs, labels)
-
-        loss.backward()
-        optimizer.step()
-
-        running_loss += loss.item() * inputs.size(0)
-        running_corrects += torch.sum(preds == labels.data)
-
-    epoch_loss = running_loss / len(dataloader)
-    epoch_acc = running_corrects.double() / len(dataloader)
-
-    return epoch_loss, epoch_acc
-
-
-def valid_epoch(model, dataloader, device):
-    model.eval()
 
 
 #
