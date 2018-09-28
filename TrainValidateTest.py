@@ -15,21 +15,22 @@ import pickle
 
 
 
-def train_model(model, dataloaders, criterion, optimizer, scheduler, device, num_epochs=25):
-    timer = Timer(['train', 'val'])
-    stats = {x: LossAccStats(len(dataloaders[x].dataset)) for x in ['train', 'val']}
+def train_model(model, dataloaders, criterion, optimizer, scheduler, device, experiment, num_epochs=25):
+    timer = Timer(['train', 'validate'])
+    stats = {x: LossAccStats(len(dataloaders[x].dataset)) for x in ['train', 'validate']}
+    steps = {x: 0 for x in ['train', 'validate']}
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
 
     disp_epoch = 'Epoch {f}/{f}'.format(f='{:' + str(len(str(num_epochs))) + 'd}')
-    disp_phase_stats = ' - {}: [{:.4f}, {:.3f}%]'
+    disp_phase_stats = ' - {}: [{:>7.4f}, {:>7.3f}%]'
     disp_time_remaining = ' - Approx. time left: {}'
 
     for epoch in range(num_epochs):
         print(disp_epoch.format(epoch + 1, num_epochs), end='', flush=True)
 
-        for phase in ['train', 'val']:
+        for phase in ['train', 'validate']:
             if phase == 'train':
                 # scheduler.step()
                 model.train()
@@ -58,14 +59,21 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, device, num
                 stats[phase].update(loss.item(), torch.sum(preds == labels.data).item(), num_inp)
                 step_loss, step_acc = stats[phase].get_stats()
 
+                experiment.log_metric(phase + '_loss', step_loss, step=steps[phase])
+                experiment.log_metric(phase + '_accuracy', step_acc, step=steps[phase])
+                steps[phase] += 1
+
             epoch_loss, epoch_acc = stats[phase].get_stats_epoch()
             print(disp_phase_stats.format(phase.title(), epoch_loss, epoch_acc), end='', flush=True)
 
-            if phase == 'val' and epoch_acc > best_acc:
+            if phase == 'validate' and epoch_acc > best_acc:
                 best_model_wts = copy.deepcopy(model.state_dict())
                 best_acc = epoch_acc
 
-            timer.step(phase)
+            time_elapsed = timer.step(phase)
+            experiment.log_metric(phase + '_time', time_elapsed, step=epoch+1)
+
+        experiment.log_epoch_end(epoch_cnt=epoch+1)
 
         time_estimate = timer.get_avg_time_all(num_avg=5) * (num_epochs - (epoch + 1))
         print(disp_time_remaining.format(display_time(time_estimate)))

@@ -19,9 +19,11 @@ import time, os, copy
 import psutil, errno
 import pickle
 
-print('PyTorch Version: {}\nTorchvision Version: {}'.format(torch.__version__, torchvision.__version__))
+# print('PyTorch Version: {}\nTorchvision Version: {}'.format(torch.__version__, torchvision.__version__))
 
-experiment = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L", project_name="adaptive learning rate", workspace="pmirbach")
+experiment = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
+                        project_name="adaptive learning rate", workspace="pmirbach",
+                        disabled=False)
 
 
 hyper_params = {
@@ -38,7 +40,7 @@ hyper_params = {
 experiment.log_multiple_params(hyper_params)
 
 
-phases = ['train', 'val', 'test']
+phases = ['train', 'validate', 'test']
 
 
 # data_dir = './data/fashion_mnist/'
@@ -57,7 +59,7 @@ train_size = int(len(dset_training) * 0.8)
 val_size = len(dset_training) - train_size
 
 image_datasets = {}
-image_datasets['train'], image_datasets['val'] = torch.utils.data.random_split(dset_training, [train_size, val_size])
+image_datasets['train'], image_datasets['validate'] = torch.utils.data.random_split(dset_training, [train_size, val_size])
 image_datasets['test'] = torchvision.datasets.FashionMNIST(root=data_dir, train=False,
                                                            transform=data_transforms['test'], download=True)
 
@@ -72,7 +74,7 @@ Net.to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
 
-train_model(Net, dataloaders, criterion, optimizer, 1, device, num_epochs=80)
+train_model(Net, dataloaders, criterion, optimizer, 1, device, experiment, num_epochs=20)
 
 
 

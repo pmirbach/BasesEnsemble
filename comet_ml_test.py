@@ -12,7 +12,7 @@ hyper_params = {
     "num_layers": 2,
     "num_classes": 10,
     "batch_size": 100,
-    "num_epochs": 12,
+    "num_epochs": 2,
     "learning_rate": 0.01
 }
 
@@ -102,6 +102,21 @@ with experiment.train():
                 print('Epoch [%d/%d], Step [%d/%d], Loss: %.4f'
                       % (epoch + 1, hyper_params['num_epochs'], i + 1,
                          len(train_dataset) // hyper_params['batch_size'], loss.data.item()))
+
+with experiment.validate():
+    # Test the Model
+    correct = 0
+    total = 0
+    for images, labels in test_loader:
+        images = Variable(images.view(-1, hyper_params['sequence_length'], hyper_params['input_size']))
+        outputs = rnn(images)
+        _, predicted = torch.max(outputs.data, 1)
+        total += labels.size(0)
+        correct += torch.sum(predicted == labels.data).item()
+
+    experiment.log_metric("accuracy",100 * correct / total)
+    print('Test Accuracy of the model on the 10000 test images: %d %%' % (100 * correct / total))
+
 with experiment.test():
     # Test the Model
     correct = 0
