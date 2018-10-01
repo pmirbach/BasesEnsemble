@@ -23,7 +23,7 @@ import pickle
 
 experiment = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
                         project_name="adaptive learning rate", workspace="pmirbach",
-                        disabled=False)
+                        disabled=True)
 
 
 hyper_params = {
@@ -69,14 +69,73 @@ dataloaders = {x: DataLoader(image_datasets[x], batch_size=128, shuffle=True) fo
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-Net = CNNsmall(inp_shape=image_datasets['train'][0][0].shape)
+# Net = CNNsmall(inp_shape=image_datasets['train'][0][0].shape)
+Net = FFsmall(inp_shape=image_datasets['train'][0][0].shape)
 Net.to(device)
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
+optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
 
-train_model(Net, dataloaders, criterion, optimizer, 1, device, experiment, num_epochs=20)
+overall_lr = 1
+
+def get_layer_params(model, lr):
+    special_params = []
+    for name, module in model.named_children():
+        print(name)
+        if len(list(module.parameters())) != 0:
+            special_params.append(
+                {'params': module.parameters(), 'lr': lr}
+            )
+    return special_params
+
+params_layer = get_layer_params(Net, overall_lr)
+
+# print(optimizer_normal)
+# print()
+optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
+# print(optimizer_layers)
+
+# for params in optimizer
+
+for group in optimizer_layers.param_groups:
+    for p in group['params']:
+        print(p.size())
 
 
+def print_layer_lr(optimizer):
+    for i, param_group in enumerate(optimizer.param_groups):
+        print('G{} - {}  '.format(i, param_group['lr']), end='', flush=True)
+    print()
+
+# print_layer_lr(optimizer_layers)
+
+# Manipulate lr
+# for param_group in optimizer_layers.param_groups:
+#     param_group['lr'] = 2
+
+def manipulate_layer_lr(optimizer):
+    for param_group in optimizer.param_groups:
+        param_group['lr'] *= np.random.rand() * 0.75 + 0.75
+    # return optimizer
+
+
+
+
+# print_layer_lr(optimizer_layers)
+# manipulate_layer_lr(optimizer_layers)
+# print_layer_lr(optimizer_layers)
+
+# scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=3, gamma=0.1)
+# for epoch in range(5):
+#     print(epoch+1)
+#     scheduler.step()
+#     for i in range(10):
+#         manipulate_layer_lr(optimizer_layers)
+#         # print_layer_lr(optimizer_layers)
+
+
+###########################################################################################
+# scheduler = optim.lr_scheduler.StepLR(optimizer_normal, step_size=20, gamma=0.1)
+# train_model(Net, dataloaders, criterion, optimizer_normal, scheduler, device, experiment, num_epochs=40)
 
 if __name__ == '__main__2':
 

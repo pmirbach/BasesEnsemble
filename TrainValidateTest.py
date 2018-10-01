@@ -32,7 +32,7 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, device, exp
 
         for phase in ['train', 'validate']:
             if phase == 'train':
-                # scheduler.step()
+                scheduler.step()
                 model.train()
             else:
                 model.eval()
@@ -45,6 +45,24 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, device, exp
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
+                # if phase == 'train':
+                #     def closure():
+                #         optimizer.zero_grad()
+                #         with torch.set_grad_enabled(True):
+                #             outputs = model(inputs)
+                #             _, preds = torch.max(outputs, 1)
+                #             loss = criterion(outputs, labels)
+                #             loss.backward()
+                #             return loss
+                #     loss = optimizer.step(closure)
+                #
+                # if phase == 'validate':
+                #     optimizer.zero_grad()
+                #     with torch.set_grad_enabled(False):
+                #         outputs = model(inputs)
+                #         _, preds = torch.max(outputs, 1)
+                #         loss = criterion(outputs, labels)
+
                 optimizer.zero_grad()
 
                 with torch.set_grad_enabled(phase == 'train'):
@@ -53,8 +71,11 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, device, exp
                     loss = criterion(outputs, labels)
 
                     if phase == 'train':
-                        loss.backward()
-                        optimizer.step()
+                        def closure():
+                            loss.backward()
+                            return loss
+
+                        optimizer.step(closure)
 
                 stats[phase].update(loss.item(), torch.sum(preds == labels.data).item(), num_inp)
                 step_loss, step_acc = stats[phase].get_stats()
