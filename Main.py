@@ -23,7 +23,7 @@ import pickle
 
 
 hyper_params = {
-    'dataset': 'MNIST',
+    'dataset': 'fashion_MNIST',
     'train_val_ratio': 0.8,
     # "sequence_length": 28,
     # "input_size": 28,
@@ -34,7 +34,7 @@ hyper_params = {
     'num_epochs': 100,
     'lr_initial': 0.01,
     'stepLR': 30,
-    'adaptiveLR': 1
+    'adaptiveLR': 0
 }
 
 phases = ['train', 'validate', 'test']
@@ -47,7 +47,7 @@ data_transforms = {'train': transforms.Compose([transforms.ToTensor(),
                                                transforms.Normalize(mean=(0.5,), std=(0.5,))])
                    }
 
-dset_training = torchvision.datasets.MNIST(root=data_dir, train=True,
+dset_training = torchvision.datasets.FashionMNIST(root=data_dir, train=True,
                                                   transform=data_transforms['train'], download=True)
 train_size = int(len(dset_training) * hyper_params['train_val_ratio'])
 val_size = len(dset_training) - train_size
@@ -72,7 +72,7 @@ def get_layer_params(model, lr):
 
 
 
-for i in range(50):
+for i in range(10):
     experiment = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
                             project_name="adaptive learning rate", workspace="pmirbach",
                             disabled=False)
