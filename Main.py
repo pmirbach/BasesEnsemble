@@ -15,11 +15,14 @@ from TrainValidateTest import Training, train_model
 from MyLittleHelpers import mkdir
 from comet_ml import Experiment
 
-import time, os, copy
+import time, os, copy, socket
 import psutil, errno
 import pickle
 
 # print('PyTorch Version: {}\nTorchvision Version: {}'.format(torch.__version__, torchvision.__version__))
+
+myhost = socket.gethostname()
+print(myhost)
 
 
 hyper_params = {
@@ -71,25 +74,25 @@ def get_layer_params(model, lr):
     return special_params
 
 
+if False:
+    for i in range(10):
+        experiment = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
+                                project_name="adaptive learning rate", workspace="pmirbach",
+                                disabled=False)
+        experiment.log_multiple_params(hyper_params)
 
-for i in range(10):
-    experiment = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
-                            project_name="adaptive learning rate", workspace="pmirbach",
-                            disabled=False)
-    experiment.log_multiple_params(hyper_params)
+        Net = CNNsmall(inp_shape=image_datasets['train'][0][0].shape)
+        # Net = FFsmall(inp_shape=image_datasets['train'][0][0].shape)
+        Net.to(device)
+        criterion = nn.CrossEntropyLoss()
+        # optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
 
-    Net = CNNsmall(inp_shape=image_datasets['train'][0][0].shape)
-    # Net = FFsmall(inp_shape=image_datasets['train'][0][0].shape)
-    Net.to(device)
-    criterion = nn.CrossEntropyLoss()
-    # optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
+        params_layer = get_layer_params(Net, hyper_params['lr_initial'])
 
-    params_layer = get_layer_params(Net, hyper_params['lr_initial'])
-
-    optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
-    scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=hyper_params['stepLR'], gamma=0.1)
-    train_model(Net, dataloaders, criterion, optimizer_layers, scheduler, device, experiment,
-                num_epochs=hyper_params['num_epochs'], ad_lr=bool(hyper_params['adaptiveLR']))
+        optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
+        scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=hyper_params['stepLR'], gamma=0.1)
+        train_model(Net, dataloaders, criterion, optimizer_layers, scheduler, device, experiment,
+                    num_epochs=hyper_params['num_epochs'], ad_lr=bool(hyper_params['adaptiveLR']))
 
 
 
