@@ -21,27 +21,23 @@ import pickle
 
 # print('PyTorch Version: {}\nTorchvision Version: {}'.format(torch.__version__, torchvision.__version__))
 
-experiment = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
-                        project_name="adaptive learning rate", workspace="pmirbach",
-                        disabled=True)
-
 
 hyper_params = {
+    'dataset': 'MNIST',
+    'train_val_ratio': 0.8,
     # "sequence_length": 28,
     # "input_size": 28,
     # "hidden_size": 128,
     # "num_layers": 2,
-    # "num_classes": 10,
-    "batch_size": 128,
-    # "num_epochs": 12,
-    # "learning_rate": 0.01
+    'num_classes': 10,
+    'batch_size': 128,
+    'num_epochs': 100,
+    'lr_initial': 0.01,
+    'stepLR': 30,
+    'adaptiveLR': 1
 }
 
-experiment.log_multiple_params(hyper_params)
-
-
 phases = ['train', 'validate', 'test']
-
 
 # data_dir = './data/fashion_mnist/'
 data_dir = './data'
@@ -53,9 +49,7 @@ data_transforms = {'train': transforms.Compose([transforms.ToTensor(),
 
 dset_training = torchvision.datasets.MNIST(root=data_dir, train=True,
                                                   transform=data_transforms['train'], download=True)
-# dset_training = torchvision.datasets.FashionMNIST(root=data_dir, train=True,
-#                                                   transform=data_transforms['train'], download=True)
-train_size = int(len(dset_training) * 0.8)
+train_size = int(len(dset_training) * hyper_params['train_val_ratio'])
 val_size = len(dset_training) - train_size
 
 image_datasets = {}
@@ -65,77 +59,40 @@ image_datasets['test'] = torchvision.datasets.FashionMNIST(root=data_dir, train=
 
 dataloaders = {x: DataLoader(image_datasets[x], batch_size=128, shuffle=True) for x in phases}
 
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
-# Net = CNNsmall(inp_shape=image_datasets['train'][0][0].shape)
-Net = FFsmall(inp_shape=image_datasets['train'][0][0].shape)
-Net.to(device)
-criterion = nn.CrossEntropyLoss()
-optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
-
-overall_lr = 1
 
 def get_layer_params(model, lr):
     special_params = []
     for name, module in model.named_children():
-        print(name)
         if len(list(module.parameters())) != 0:
             special_params.append(
                 {'params': module.parameters(), 'lr': lr}
             )
     return special_params
 
-params_layer = get_layer_params(Net, overall_lr)
-
-# print(optimizer_normal)
-# print()
-optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
-# print(optimizer_layers)
-
-# for params in optimizer
-
-for group in optimizer_layers.param_groups:
-    for p in group['params']:
-        print(p.size())
 
 
-def print_layer_lr(optimizer):
-    for i, param_group in enumerate(optimizer.param_groups):
-        print('G{} - {}  '.format(i, param_group['lr']), end='', flush=True)
-    print()
+for i in range(50):
+    experiment = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
+                            project_name="adaptive learning rate", workspace="pmirbach",
+                            disabled=False)
+    experiment.log_multiple_params(hyper_params)
 
-# print_layer_lr(optimizer_layers)
+    Net = CNNsmall(inp_shape=image_datasets['train'][0][0].shape)
+    # Net = FFsmall(inp_shape=image_datasets['train'][0][0].shape)
+    Net.to(device)
+    criterion = nn.CrossEntropyLoss()
+    # optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
 
-# Manipulate lr
-# for param_group in optimizer_layers.param_groups:
-#     param_group['lr'] = 2
+    params_layer = get_layer_params(Net, hyper_params['lr_initial'])
 
-def manipulate_layer_lr(optimizer):
-    for param_group in optimizer.param_groups:
-        param_group['lr'] *= np.random.rand() * 0.75 + 0.75
-    # return optimizer
+    optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
+    scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=hyper_params['stepLR'], gamma=0.1)
+    train_model(Net, dataloaders, criterion, optimizer_layers, scheduler, device, experiment,
+                num_epochs=hyper_params['num_epochs'], ad_lr=bool(hyper_params['adaptiveLR']))
 
 
 
-
-# print_layer_lr(optimizer_layers)
-# manipulate_layer_lr(optimizer_layers)
-# print_layer_lr(optimizer_layers)
-
-# scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=3, gamma=0.1)
-# for epoch in range(5):
-#     print(epoch+1)
-#     scheduler.step()
-#     for i in range(10):
-#         manipulate_layer_lr(optimizer_layers)
-#         # print_layer_lr(optimizer_layers)
-
-
-###########################################################################################
-# scheduler = optim.lr_scheduler.StepLR(optimizer_normal, step_size=20, gamma=0.1)
-# train_model(Net, dataloaders, criterion, optimizer_normal, scheduler, device, experiment, num_epochs=40)
 
 if __name__ == '__main__2':
 

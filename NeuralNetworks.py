@@ -193,15 +193,15 @@ class CNNsmall(nn.Module):
         self.num_inp_channels, self.data_shape = _get_data_shape(inp_shape)
 
         self.pool = nn.MaxPool2d(kernel_size=2)
-        self.conv1 = nn.Conv2d(in_channels=self.num_inp_channels, out_channels=10, kernel_size=5)
-        self.conv2 = nn.Conv2d(in_channels=10, out_channels=20, kernel_size=5)
+        self.conv1 = nn.Conv2d(in_channels=self.num_inp_channels, out_channels=10, kernel_size=5, bias=False)
+        self.conv2 = nn.Conv2d(in_channels=10, out_channels=20, kernel_size=5, bias=False)
 
         self.num_flat_features = _get_get_num_flat_features(self.num_inp_channels, self.data_shape,
                                                             self.forward_preprocess)
 
-        self.fc1 = nn.Linear(in_features=self.num_flat_features, out_features=128)
-        self.fc2 = nn.Linear(in_features=128, out_features=64)
-        self.fc3 = nn.Linear(in_features=64, out_features=10)
+        self.fc1 = nn.Linear(in_features=self.num_flat_features, out_features=128, bias=False)
+        self.fc2 = nn.Linear(in_features=128, out_features=64, bias=False)
+        self.fc3 = nn.Linear(in_features=64, out_features=10, bias=False)
 
         self.num_out_features = self.fc2.out_features
 

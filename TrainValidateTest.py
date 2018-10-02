@@ -15,7 +15,7 @@ import pickle
 
 
 
-def train_model(model, dataloaders, criterion, optimizer, scheduler, device, experiment, num_epochs=25):
+def train_model(model, dataloaders, criterion, optimizer, scheduler, device, experiment, num_epochs=25, ad_lr=True):
     timer = Timer(['train', 'validate'])
     stats = {x: LossAccStats(len(dataloaders[x].dataset)) for x in ['train', 'validate']}
     steps = {x: 0 for x in ['train', 'validate']}
@@ -36,6 +36,11 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, device, exp
                 model.train()
             else:
                 model.eval()
+
+            epoch_lr = optimizer.param_groups[0]['lr']
+            def layer_lr_reset():
+                for group in optimizer.param_groups:
+                    group['lr'] = epoch_lr
 
             stats[phase].reset()
 
@@ -73,9 +78,19 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, device, exp
                     if phase == 'train':
                         def closure():
                             loss.backward()
+
+                            if ad_lr:
+                                for group in optimizer.param_groups:
+                                    buf = 0.0
+                                    for p in group['params']:
+                                        buf += p.norm(2).item()
+                                    group['lr'] *= 1 + np.log(1 + 1 / buf)
+
                             return loss
 
                         optimizer.step(closure)
+                        if ad_lr:
+                            layer_lr_reset()
 
                 stats[phase].update(loss.item(), torch.sum(preds == labels.data).item(), num_inp)
                 step_loss, step_acc = stats[phase].get_stats()
