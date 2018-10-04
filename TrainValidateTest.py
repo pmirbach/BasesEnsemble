@@ -95,8 +95,10 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, device, exp
                 stats[phase].update(loss.item(), torch.sum(preds == labels.data).item(), num_inp)
                 step_loss, step_acc = stats[phase].get_stats()
 
-                experiment.log_metric(phase + '_loss', step_loss, step=steps[phase])
-                experiment.log_metric(phase + '_accuracy', step_acc, step=steps[phase])
+                if phase == 'train':
+                    experiment.log_metric(phase + '_loss', step_loss, step=steps[phase])
+                else:
+                    experiment.log_metric(phase + '_accuracy', step_acc, step=steps[phase])
                 steps[phase] += 1
 
             epoch_loss, epoch_acc = stats[phase].get_stats_epoch()

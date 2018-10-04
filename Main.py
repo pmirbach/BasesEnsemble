@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 
 import numpy as np
 import torchvision
+from torchvision import datasets as datasets
 from torchvision import transforms as transforms
 
 from NeuralNetworks import CNNsmall, FFsmall, EnsembleMLP, ResNetLinear
@@ -19,50 +20,72 @@ import time, os, copy, socket
 import psutil, errno
 import pickle
 
-# print('PyTorch Version: {}\nTorchvision Version: {}'.format(torch.__version__, torchvision.__version__))
 
-myhost = socket.gethostname()
-print(myhost)
+# TODO Arguments for arg parser
+dataset = 'Fashion-MNIST'
+train_validate_ratio = 0.8
+adaptiveLR = 1
+num_runs = 5
+batch_size = 64
+
+
+dataset_dirs = {'MNIST': 'mnist',
+                'EMNIST': 'emnist',
+                'Fashion-MNIST': 'fashion-mnist',
+                'CIFAR10': 'cifar10',
+                'CIFAR100': 'cifar100'}
+
+current_host = socket.gethostname()
+print(current_host)
+
+if current_host == 'nevada':
+    data_dir = '/raid/common/' + dataset_dirs[dataset]
+else:
+    data_dir = './data/' + dataset_dirs[dataset]
+
+print(data_dir)
 
 
 hyper_params = {
-    'dataset': 'fashion_MNIST',
-    'train_val_ratio': 0.8,
+    'dataset': dataset,
+    'train_validate_ratio': train_validate_ratio,
     # "sequence_length": 28,
     # "input_size": 28,
     # "hidden_size": 128,
     # "num_layers": 2,
     'num_classes': 10,
-    'batch_size': 128,
+    'batch_size': batch_size,
     'num_epochs': 100,
     'lr_initial': 0.01,
     'stepLR': 30,
-    'adaptiveLR': 0
+    'adaptiveLR': adaptiveLR
 }
 
 phases = ['train', 'validate', 'test']
 
-# data_dir = './data/fashion_mnist/'
-data_dir = './data'
 data_transforms = {'train': transforms.Compose([transforms.ToTensor(),
                                                 transforms.Normalize(mean=(0.5,), std=(0.5,))]),
                    'test': transforms.Compose([transforms.ToTensor(),
                                                transforms.Normalize(mean=(0.5,), std=(0.5,))])
                    }
 
+
+
+
 dset_training = torchvision.datasets.FashionMNIST(root=data_dir, train=True,
-                                                  transform=data_transforms['train'], download=True)
-train_size = int(len(dset_training) * hyper_params['train_val_ratio'])
+                                                  transform=data_transforms['train'], download=False)
+train_size = int(len(dset_training) * hyper_params['train_validate_ratio'])
 val_size = len(dset_training) - train_size
 
 image_datasets = {}
 image_datasets['train'], image_datasets['validate'] = torch.utils.data.random_split(dset_training, [train_size, val_size])
 image_datasets['test'] = torchvision.datasets.FashionMNIST(root=data_dir, train=False,
-                                                           transform=data_transforms['test'], download=True)
+                                                           transform=data_transforms['test'], download=False)
 
-dataloaders = {x: DataLoader(image_datasets[x], batch_size=128, shuffle=True) for x in phases}
+dataloaders = {x: DataLoader(image_datasets[x], batch_size=hyper_params['batch_size'], shuffle=True) for x in phases}
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 
 def get_layer_params(model, lr):
     special_params = []
@@ -74,25 +97,24 @@ def get_layer_params(model, lr):
     return special_params
 
 
-if False:
-    for i in range(10):
-        experiment = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
-                                project_name="adaptive learning rate", workspace="pmirbach",
-                                disabled=False)
-        experiment.log_multiple_params(hyper_params)
+for i in range(num_runs):
+    experiment = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
+                            project_name="adaptive learning rate", workspace="pmirbach",
+                            disabled=False)
+    experiment.log_multiple_params(hyper_params)
 
-        Net = CNNsmall(inp_shape=image_datasets['train'][0][0].shape)
-        # Net = FFsmall(inp_shape=image_datasets['train'][0][0].shape)
-        Net.to(device)
-        criterion = nn.CrossEntropyLoss()
-        # optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
+    Net = CNNsmall(inp_shape=image_datasets['train'][0][0].shape)
+    # Net = FFsmall(inp_shape=image_datasets['train'][0][0].shape)
+    Net.to(device)
+    criterion = nn.CrossEntropyLoss()
+    # optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
 
-        params_layer = get_layer_params(Net, hyper_params['lr_initial'])
+    params_layer = get_layer_params(Net, hyper_params['lr_initial'])
 
-        optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
-        scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=hyper_params['stepLR'], gamma=0.1)
-        train_model(Net, dataloaders, criterion, optimizer_layers, scheduler, device, experiment,
-                    num_epochs=hyper_params['num_epochs'], ad_lr=bool(hyper_params['adaptiveLR']))
+    optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
+    scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=hyper_params['stepLR'], gamma=0.1)
+    train_model(Net, dataloaders, criterion, optimizer_layers, scheduler, device, experiment,
+                num_epochs=hyper_params['num_epochs'], ad_lr=bool(hyper_params['adaptiveLR']))
 
 
 
