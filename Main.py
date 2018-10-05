@@ -23,10 +23,11 @@ import pickle
 
 # TODO Arguments for arg parser
 dataset = 'Fashion-MNIST'
-train_validate_ratio = 0.8
+train_validate_ratio = 0.9
 adaptiveLR = 1
 num_runs = 5
-batch_size = 64
+num_epochs = 60
+batch_size = 300
 
 
 dataset_dirs = {'MNIST': 'mnist',
@@ -55,7 +56,7 @@ hyper_params = {
     # "num_layers": 2,
     'num_classes': 10,
     'batch_size': batch_size,
-    'num_epochs': 100,
+    'num_epochs': num_epochs,
     'lr_initial': 0.01,
     'stepLR': 30,
     'adaptiveLR': adaptiveLR
@@ -63,6 +64,7 @@ hyper_params = {
 
 phases = ['train', 'validate', 'test']
 
+# TODO Correct normalize routines for each dataset
 data_transforms = {'train': transforms.Compose([transforms.ToTensor(),
                                                 transforms.Normalize(mean=(0.5,), std=(0.5,))]),
                    'test': transforms.Compose([transforms.ToTensor(),
@@ -70,6 +72,7 @@ data_transforms = {'train': transforms.Compose([transforms.ToTensor(),
                    }
 
 
+# TODO Loading routines for EMNIST, Cifar10, Cifar100
 
 
 dset_training = torchvision.datasets.FashionMNIST(root=data_dir, train=True,

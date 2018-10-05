@@ -13,7 +13,7 @@ from MyLittleHelpers import display_time, Timer, LossAccStats
 
 import pickle
 
-
+# TODO Split this is up in readable train_epoch, validate_epoch
 
 def train_model(model, dataloaders, criterion, optimizer, scheduler, device, experiment, num_epochs=25, ad_lr=True):
     timer = Timer(['train', 'validate'])
@@ -97,11 +97,12 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, device, exp
 
                 if phase == 'train':
                     experiment.log_metric(phase + '_loss', step_loss, step=steps[phase])
-                else:
-                    experiment.log_metric(phase + '_accuracy', step_acc, step=steps[phase])
+                # else:
+                #     experiment.log_metric(phase + '_accuracy', step_acc, step=steps[phase])
                 steps[phase] += 1
 
             epoch_loss, epoch_acc = stats[phase].get_stats_epoch()
+            experiment.log_metric(phase + '_accuracy', epoch_acc, step=epoch+1)
             print(disp_phase_stats.format(phase.title(), epoch_loss, epoch_acc), end='', flush=True)
 
             if phase == 'validate' and epoch_acc > best_acc:
