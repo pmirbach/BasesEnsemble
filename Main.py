@@ -20,6 +20,33 @@ import time, os, copy, socket
 import psutil, errno
 import pickle
 
+import argparse
+
+dataset_names = ('mnist', 'fashion-mnist', 'emnist', 'cifar10', 'cifar100')
+
+parser = argparse.ArgumentParser(description='PyTorchLab')
+parser.add_argument('-d', '--dataset', metavar='dataset', default='cifar10', choices=dataset_names,
+                    help='dataset to be used: ' + ' | '.join(dataset_names) + ' (default: cifar10)')
+
+parser.add_argument('-b', '--batchsize', type=int, default=128, help='training batch size')
+
+parser.add_argument('-c', '--comet', action='store_true', help='track training data to comet.ml')
+
+parser.add_argument('--adLR', action='store_true', help='activate adapitve layer based learning rates')
+
+parser.add_argument()
+
+
+args = parser.parse_args()
+
+dataset = args.dataset
+flg_comet = args.comet
+
+print(args.dataset)
+print(args.comet)
+print(args.batchsize)
+
+print(args)
 
 # TODO Arguments for arg parser
 dataset = 'Fashion-MNIST'
@@ -28,7 +55,6 @@ adaptiveLR = 1
 num_runs = 5
 num_epochs = 60
 batch_size = 300
-
 
 dataset_dirs = {'MNIST': 'mnist',
                 'EMNIST': 'emnist',
@@ -45,7 +71,6 @@ else:
     data_dir = './data/' + dataset_dirs[dataset]
 
 print(data_dir)
-
 
 hyper_params = {
     'dataset': dataset,
@@ -71,7 +96,6 @@ data_transforms = {'train': transforms.Compose([transforms.ToTensor(),
                                                transforms.Normalize(mean=(0.5,), std=(0.5,))])
                    }
 
-
 # TODO Loading routines for EMNIST, Cifar10, Cifar100
 
 
@@ -81,7 +105,8 @@ train_size = int(len(dset_training) * hyper_params['train_validate_ratio'])
 val_size = len(dset_training) - train_size
 
 image_datasets = {}
-image_datasets['train'], image_datasets['validate'] = torch.utils.data.random_split(dset_training, [train_size, val_size])
+image_datasets['train'], image_datasets['validate'] = torch.utils.data.random_split(dset_training,
+                                                                                    [train_size, val_size])
 image_datasets['test'] = torchvision.datasets.FashionMNIST(root=data_dir, train=False,
                                                            transform=data_transforms['test'], download=False)
 
@@ -100,44 +125,41 @@ def get_layer_params(model, lr):
     return special_params
 
 
-for i in range(num_runs):
-    experiment = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
-                            project_name="adaptive learning rate", workspace="pmirbach",
-                            disabled=False)
-    experiment.log_multiple_params(hyper_params)
-
-    Net = CNNsmall(inp_shape=image_datasets['train'][0][0].shape)
-    # Net = FFsmall(inp_shape=image_datasets['train'][0][0].shape)
-    Net.to(device)
-    criterion = nn.CrossEntropyLoss()
-    # optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
-
-    params_layer = get_layer_params(Net, hyper_params['lr_initial'])
-
-    optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
-    scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=hyper_params['stepLR'], gamma=0.1)
-    train_model(Net, dataloaders, criterion, optimizer_layers, scheduler, device, experiment,
-                num_epochs=hyper_params['num_epochs'], ad_lr=bool(hyper_params['adaptiveLR']))
-
-
-
+# for i in range(num_runs):
+#     experiment = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
+#                             project_name="adaptive learning rate", workspace="pmirbach",
+#                             disabled=False)
+#     experiment.log_multiple_params(hyper_params)
+#
+#     Net = CNNsmall(inp_shape=image_datasets['train'][0][0].shape)
+#     # Net = FFsmall(inp_shape=image_datasets['train'][0][0].shape)
+#     Net.to(device)
+#     criterion = nn.CrossEntropyLoss()
+#     # optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
+#
+#     params_layer = get_layer_params(Net, hyper_params['lr_initial'])
+#
+#     optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
+#     scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=hyper_params['stepLR'], gamma=0.1)
+#     train_model(Net, dataloaders, criterion, optimizer_layers, scheduler, device, experiment,
+#                 num_epochs=hyper_params['num_epochs'], ad_lr=bool(hyper_params['adaptiveLR']))
 
 if __name__ == '__main__2':
 
     flg_batchsize = 64
 
-    #TODO Take a look at argparser: What is it used for?
+    # TODO Take a look at argparser: What is it used for?
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    #TODO Where to put all this stuff? Datasets.py?
+    # TODO Where to put all this stuff? Datasets.py?
     # root = './data'
     root = './data/fashion_mnist/'
 
     # transform = torchvision.transforms.ToTensor()
     transform = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize(mean=(0.5, ), std=(0.5, ))
+        torchvision.transforms.Normalize(mean=(0.5,), std=(0.5,))
     ])
 
     train_set_real = torchvision.datasets.FashionMNIST(root=root, train=True, transform=transform, download=True)
@@ -146,13 +168,13 @@ if __name__ == '__main__2':
     # train_set_real = torchvision.datasets.MNIST(root=root, train=True, transform=transform, download=True)
     # test_set_real = torchvision.datasets.MNIST(root=root, train=False, transform=transform, download=True)
 
-    #TODO Load datasets from /raid/common
+    # TODO Load datasets from /raid/common
 
     path_ft = {'root': root, 'orig_data': 'processed', 'trafo_data': 'fourier', 'trafo_prefix': 'ft'}
     train_set_ft = DatasetBase(name='Fourier', path=path_ft, train=True, base_trafo=transformation_fourier,
                                normalizer=normalize_linear, recalc=False)
     test_set_ft = DatasetBase(name='Fourier', path=path_ft, train=False, base_trafo=transformation_fourier,
-                               normalizer=normalize_linear, recalc=False)
+                              normalizer=normalize_linear, recalc=False)
 
     train_set_total = MyStackedDataset([train_set_real, train_set_ft])
     test_set_total = MyStackedDataset([test_set_real, test_set_ft])
@@ -210,14 +232,12 @@ if __name__ == '__main__2':
         EnsNet.train_Net(train_loader_total, 40, criterion, optimizer_total, device)
         pred_total = EnsNet.validate_Net(test_loader_total, device)
 
-
     if False:
-
-        #TODO Make little Helper:
+        # TODO Make little Helper:
         model_path = r'./results/models'
         mkdir(model_path)
 
-        #TODO Create a NN Save Load module: Models, Trainstatus, ...
+        # TODO Create a NN Save Load module: Models, Trainstatus, ...
         # file_name = 'FF_fourier_trained.pt'
         file_name = 'CNN_real_trained_2.pt'
         torch.save(Net, os.path.join(model_path, file_name))
