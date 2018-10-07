@@ -25,28 +25,68 @@ import argparse
 dataset_names = ('mnist', 'fashion-mnist', 'emnist', 'cifar10', 'cifar100')
 
 parser = argparse.ArgumentParser(description='PyTorchLab')
-parser.add_argument('-d', '--dataset', metavar='dataset', default='cifar10', choices=dataset_names,
+parser.add_argument('-d', '--dataset', metavar='data', default='cifar10', choices=dataset_names,
                     help='dataset to be used: ' + ' | '.join(dataset_names) + ' (default: cifar10)')
 
-parser.add_argument('-b', '--batchsize', type=int, default=128, help='training batch size')
+parser.add_argument('-b', '--batchsize', type=int, default=128, help='training batch size (default: 128)')
 
 parser.add_argument('-c', '--comet', action='store_true', help='track training data to comet.ml')
 
-parser.add_argument('--adLR', action='store_true', help='activate adapitve layer based learning rates')
+parser.add_argument('--adLR', type=int, default=0, help='adaptive layer learning rate function (default: 0)')
 
-parser.add_argument()
+parser.add_argument('--num_epochs', type=int, default=60, help='number of epoch for training (default: 60)')
 
+parser.add_argument('-tvr', '--train_validate_ratio', metavar='ratio', type=float, default=0.9,
+                    help='ratio training vs. validation (default: 0.9)')
+
+parser.add_argument('-id', '--slurmId', type=int, help='slurm id for array jobs')
 
 args = parser.parse_args()
 
-dataset = args.dataset
-flg_comet = args.comet
+hyper_params = vars(args)
+flg_comet = hyper_params.pop('comet')
+slurmId = hyper_params.pop('slurmId')
 
-print(args.dataset)
-print(args.comet)
-print(args.batchsize)
+print('flg_comet', flg_comet)
+print(hyper_params)
 
-print(args)
+
+current_host = socket.gethostname()
+# print(current_host)
+
+if current_host == 'nevada':
+    data_dir = '/raid/common/' + hyper_params['dataset']
+else:
+    data_dir = './data/' + hyper_params['dataset']
+
+
+if hyper_params['dataset'] == "cifar10":
+    train_transform = transforms.Compose([transforms.ToTensor()])
+    train_set = torchvision.datasets.CIFAR10(root=data_dir, train=True, download=False, transform=train_transform)
+    #print(vars(train_set))
+    print(train_set.train_data.shape)
+    print(train_set.train_data.mean(axis=(0,1,2))/255)
+    print(train_set.train_data.std(axis=(0,1,2))/255)
+
+elif hyper_params['dataset'] == "cifar100":
+    train_transform = transforms.Compose([transforms.ToTensor()])
+    train_set = torchvision.datasets.CIFAR100(root=data_dir, train=True, download=False, transform=train_transform)
+    #print(vars(train_set))
+    print(train_set.train_data.shape)
+    print(np.mean(train_set.train_data, axis=(0,1,2))/255)
+    print(np.std(train_set.train_data, axis=(0,1,2))/255)
+
+elif hyper_params['dataset'] == "mnist":
+    train_transform = transforms.Compose([transforms.ToTensor()])
+    train_set = torchvision.datasets.MNIST(root=data_dir, train=True, download=False, transform=train_transform)
+    #print(vars(train_set))
+    print(list(train_set.train_data.size()))
+    print(train_set.train_data.float().mean()/255)
+    print(train_set.train_data.float().std()/255)
+
+
+
+# print(slurmId)
 
 # TODO Arguments for arg parser
 dataset = 'Fashion-MNIST'
@@ -56,21 +96,9 @@ num_runs = 5
 num_epochs = 60
 batch_size = 300
 
-dataset_dirs = {'MNIST': 'mnist',
-                'EMNIST': 'emnist',
-                'Fashion-MNIST': 'fashion-mnist',
-                'CIFAR10': 'cifar10',
-                'CIFAR100': 'cifar100'}
 
-current_host = socket.gethostname()
-print(current_host)
 
-if current_host == 'nevada':
-    data_dir = '/raid/common/' + dataset_dirs[dataset]
-else:
-    data_dir = './data/' + dataset_dirs[dataset]
-
-print(data_dir)
+# print(data_dir)
 
 hyper_params = {
     'dataset': dataset,
@@ -87,42 +115,42 @@ hyper_params = {
     'adaptiveLR': adaptiveLR
 }
 
-phases = ['train', 'validate', 'test']
-
-# TODO Correct normalize routines for each dataset
-data_transforms = {'train': transforms.Compose([transforms.ToTensor(),
-                                                transforms.Normalize(mean=(0.5,), std=(0.5,))]),
-                   'test': transforms.Compose([transforms.ToTensor(),
-                                               transforms.Normalize(mean=(0.5,), std=(0.5,))])
-                   }
-
-# TODO Loading routines for EMNIST, Cifar10, Cifar100
-
-
-dset_training = torchvision.datasets.FashionMNIST(root=data_dir, train=True,
-                                                  transform=data_transforms['train'], download=False)
-train_size = int(len(dset_training) * hyper_params['train_validate_ratio'])
-val_size = len(dset_training) - train_size
-
-image_datasets = {}
-image_datasets['train'], image_datasets['validate'] = torch.utils.data.random_split(dset_training,
-                                                                                    [train_size, val_size])
-image_datasets['test'] = torchvision.datasets.FashionMNIST(root=data_dir, train=False,
-                                                           transform=data_transforms['test'], download=False)
-
-dataloaders = {x: DataLoader(image_datasets[x], batch_size=hyper_params['batch_size'], shuffle=True) for x in phases}
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-
-def get_layer_params(model, lr):
-    special_params = []
-    for name, module in model.named_children():
-        if len(list(module.parameters())) != 0:
-            special_params.append(
-                {'params': module.parameters(), 'lr': lr}
-            )
-    return special_params
+# phases = ['train', 'validate', 'test']
+#
+# # TODO Correct normalize routines for each dataset
+# data_transforms = {'train': transforms.Compose([transforms.ToTensor(),
+#                                                 transforms.Normalize(mean=(0.5,), std=(0.5,))]),
+#                    'test': transforms.Compose([transforms.ToTensor(),
+#                                                transforms.Normalize(mean=(0.5,), std=(0.5,))])
+#                    }
+#
+# # TODO Loading routines for EMNIST, Cifar10, Cifar100
+#
+#
+# dset_training = torchvision.datasets.FashionMNIST(root=data_dir, train=True,
+#                                                   transform=data_transforms['train'], download=False)
+# train_size = int(len(dset_training) * hyper_params['train_validate_ratio'])
+# val_size = len(dset_training) - train_size
+#
+# image_datasets = {}
+# image_datasets['train'], image_datasets['validate'] = torch.utils.data.random_split(dset_training,
+#                                                                                     [train_size, val_size])
+# image_datasets['test'] = torchvision.datasets.FashionMNIST(root=data_dir, train=False,
+#                                                            transform=data_transforms['test'], download=False)
+#
+# dataloaders = {x: DataLoader(image_datasets[x], batch_size=hyper_params['batch_size'], shuffle=True) for x in phases}
+#
+# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+#
+#
+# def get_layer_params(model, lr):
+#     special_params = []
+#     for name, module in model.named_children():
+#         if len(list(module.parameters())) != 0:
+#             special_params.append(
+#                 {'params': module.parameters(), 'lr': lr}
+#             )
+#     return special_params
 
 
 # for i in range(num_runs):
