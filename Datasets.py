@@ -9,9 +9,52 @@ import errno
 from torch.utils.data import Dataset
 from MyLittleHelpers import sep
 from Transformations import transformation_fourier, normalize_linear
-
+from torchvision import datasets, transforms
+import numpy as np
 
 # from matplotlib import pyplot as plt
+
+
+def get_dataset(dataset, data_dir, train_transform, test_transform, flg_stats=False):
+
+    dsets = {}
+    if dataset == 'cifar10':
+        dsets['training'] = datasets.CIFAR10(root=data_dir, train=True, download=False, transform=train_transform)
+        dsets['test'] = datasets.CIFAR10(root=data_dir, train=False, download=False, transform=test_transform)
+    elif dataset == 'cifar100':
+        dsets['training'] = datasets.CIFAR10(root=data_dir, train=True, download=False, transform=train_transform)
+        dsets['test'] = datasets.CIFAR10(root=data_dir, train=False, download=False, transform=test_transform)
+    elif dataset == 'mnist':
+        dsets['training'] = datasets.MNIST(root=data_dir, train=True, download=False, transform=train_transform)
+        dsets['test'] = datasets.MNIST(root=data_dir, train=False, download=False, transform=test_transform)
+    elif dataset == 'fashion-mnist':
+        dsets['training'] = datasets.FashionMNIST(root=data_dir, train=True, download=False, transform=train_transform)
+        dsets['test'] = datasets.FashionMNIST(root=data_dir, train=False, download=False, transform=test_transform)
+
+    if flg_stats:
+        get_dset_stats(dsets)
+    return dsets
+
+
+def get_dset_stats(dsets):
+
+    # print(len(dsets['training']))
+    # for i in range(len(dsets['training'])):
+    #     print(type(dsets['training'].__getitem__(i)))
+
+    train_data = dsets['training'].train_data
+    test_data = dsets['test'].test_data
+
+    out_str = '{}: shape: {}, mean: {}, std: {}'
+
+    for phase, data in zip(['training', 'test'], [train_data, test_data]):
+        if torch.is_tensor(data):
+            data = data.numpy()
+
+        mean = np.mean(data, axis=(0,1,2)) / 255
+        std = np.std(data, axis=(0,1,2)) / 255
+
+        print(out_str.format(phase, data.shape, mean, std))
 
 
 class DatasetBase(Dataset):

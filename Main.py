@@ -10,7 +10,7 @@ from torchvision import transforms as transforms
 
 from NeuralNetworks import CNNsmall, FFsmall, EnsembleMLP, ResNetLinear
 from Transformations import transformation_fourier, normalize_linear
-from Datasets import DatasetBase, MyStackedDataset
+from Datasets import DatasetBase, MyStackedDataset, get_dataset
 from TrainValidateTest import Training, train_model
 
 from MyLittleHelpers import mkdir
@@ -48,72 +48,71 @@ flg_comet = hyper_params.pop('comet')
 slurmId = hyper_params.pop('slurmId')
 
 print('flg_comet', flg_comet)
+
+hyper_params['dataset'] = 'mnist'
+# hyper_params['dataset'] = 'fashion-mnist'
+# hyper_params['dataset'] = 'cifar10'
+
 print(hyper_params)
 
-
 current_host = socket.gethostname()
-# print(current_host)
-
 if current_host == 'nevada':
     data_dir = '/raid/common/' + hyper_params['dataset']
 else:
     data_dir = './data/' + hyper_params['dataset']
 
+print(data_dir)
 
-if hyper_params['dataset'] == "cifar10":
-    train_transform = transforms.Compose([transforms.ToTensor()])
-    train_set = torchvision.datasets.CIFAR10(root=data_dir, train=True, download=False, transform=train_transform)
-    #print(vars(train_set))
-    print(train_set.train_data.shape)
-    print(train_set.train_data.mean(axis=(0,1,2))/255)
-    print(train_set.train_data.std(axis=(0,1,2))/255)
 
-elif hyper_params['dataset'] == "cifar100":
-    train_transform = transforms.Compose([transforms.ToTensor()])
-    train_set = torchvision.datasets.CIFAR100(root=data_dir, train=True, download=False, transform=train_transform)
-    #print(vars(train_set))
-    print(train_set.train_data.shape)
-    print(np.mean(train_set.train_data, axis=(0,1,2))/255)
-    print(np.std(train_set.train_data, axis=(0,1,2))/255)
+def get_transforms(train_mean, train_std, test_mean, test_std):
+    return {'train': transforms.Compose([transforms.ToTensor(),
+                                         transforms.Normalize(mean=train_mean, std=train_std)]),
+            'test': transforms.Compose([transforms.ToTensor(),
+                                        transforms.Normalize(mean=test_mean, std=test_std)])
+            }
 
-elif hyper_params['dataset'] == "mnist":
-    train_transform = transforms.Compose([transforms.ToTensor()])
-    train_set = torchvision.datasets.MNIST(root=data_dir, train=True, download=False, transform=train_transform)
-    #print(vars(train_set))
-    print(list(train_set.train_data.size()))
-    print(train_set.train_data.float().mean()/255)
-    print(train_set.train_data.float().std()/255)
+data_transforms = {}
+# data_transforms['mnist'] = get_transforms(0.2860405969887955, 0.3530242445149223, 0.28684928071228494, 0.35244415324743994)
+# data_transforms['mnist'] = get_transforms(0.5, 0.5, 0.5, 0.5)
+data_transforms['mnist'] = get_transforms(100, 100, 100, 100)
+print(data_transforms['mnist']['train'])
 
 
 
-# print(slurmId)
-
-# TODO Arguments for arg parser
-dataset = 'Fashion-MNIST'
-train_validate_ratio = 0.9
-adaptiveLR = 1
-num_runs = 5
-num_epochs = 60
-batch_size = 300
+# trafo = transforms.Compose([transforms.ToTensor()])
+dset = get_dataset(hyper_params['dataset'], data_dir, data_transforms['mnist']['train'],
+                   data_transforms['mnist']['test'], True)
 
 
 
-# print(data_dir)
-
-hyper_params = {
-    'dataset': dataset,
-    'train_validate_ratio': train_validate_ratio,
-    # "sequence_length": 28,
-    # "input_size": 28,
-    # "hidden_size": 128,
-    # "num_layers": 2,
-    'num_classes': 10,
-    'batch_size': batch_size,
-    'num_epochs': num_epochs,
-    'lr_initial': 0.01,
-    'stepLR': 30,
-    'adaptiveLR': adaptiveLR
-}
+# # print(slurmId)
+#
+# # TODO Arguments for arg parser
+# dataset = 'Fashion-MNIST'
+# train_validate_ratio = 0.9
+# adaptiveLR = 1
+# num_runs = 5
+# num_epochs = 60
+# batch_size = 300
+#
+#
+#
+# # print(data_dir)
+#
+# hyper_params = {
+#     'dataset': dataset,
+#     'train_validate_ratio': train_validate_ratio,
+#     # "sequence_length": 28,
+#     # "input_size": 28,
+#     # "hidden_size": 128,
+#     # "num_layers": 2,
+#     'num_classes': 10,
+#     'batch_size': batch_size,
+#     'num_epochs': num_epochs,
+#     'lr_initial': 0.01,
+#     'stepLR': 30,
+#     'adaptiveLR': adaptiveLR
+# }
 
 # phases = ['train', 'validate', 'test']
 #
