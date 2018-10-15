@@ -10,8 +10,12 @@ from torchvision import transforms as transforms
 
 from NeuralNetworks import CNNsmall, FFsmall, EnsembleMLP, ResNetLinear
 from Transformations import transformation_fourier, normalize_linear
-from Datasets import DatasetBase, MyStackedDataset, get_dataset
+from Datasets import DatasetBase, MyStackedDataset, get_dataset, get_transforms
 from TrainValidateTest import Training, train_model
+
+from itertools import product
+
+# import matplotlib.pyplot as plt
 
 from MyLittleHelpers import mkdir
 from comet_ml import Experiment
@@ -22,6 +26,10 @@ import pickle
 
 import argparse
 
+
+flg_visualize = 0
+
+
 dataset_names = ('mnist', 'fashion-mnist', 'emnist', 'cifar10', 'cifar100')
 
 parser = argparse.ArgumentParser(description='PyTorchLab')
@@ -30,7 +38,7 @@ parser.add_argument('-d', '--dataset', metavar='data', default='cifar10', choice
 
 parser.add_argument('-b', '--batchsize', type=int, default=128, help='training batch size (default: 128)')
 
-parser.add_argument('-c', '--comet', action='store_true', help='track training data to comet.ml')
+parser.add_argument('-c', '--comet', action='store_true', default=True, help='track training data to comet.ml')
 
 parser.add_argument('--adLR', type=int, default=0, help='adaptive layer learning rate function (default: 0)')
 
@@ -38,6 +46,10 @@ parser.add_argument('--num_epochs', type=int, default=60, help='number of epoch 
 
 parser.add_argument('-tvr', '--train_validate_ratio', metavar='ratio', type=float, default=0.9,
                     help='ratio training vs. validation (default: 0.9)')
+
+parser.add_argument('--lr_initial', type=float, default=1e-3, help='initial learning rate for all layers')
+
+parser.add_argument('--lr_step', type=int, default=30, help='epochs to reduce lr to 1/10')
 
 parser.add_argument('-id', '--slurmId', type=int, help='slurm id for array jobs')
 
@@ -47,13 +59,17 @@ hyper_params = vars(args)
 flg_comet = hyper_params.pop('comet')
 slurmId = hyper_params.pop('slurmId')
 
-print('flg_comet', flg_comet)
 
-hyper_params['dataset'] = 'mnist'
-# hyper_params['dataset'] = 'fashion-mnist'
-# hyper_params['dataset'] = 'cifar10'
+batch_sizes = tuple((i * 50 for i in range(1,9)))
+adlrs = (0, 1)
+res = product(batch_sizes, adlrs)
+res_total = [x for x in res for _ in range(10)]
+
+hyper_params['batchsize'], hyper_params['adLR'] = res_total[slurmId]
+
 
 print(hyper_params)
+
 
 current_host = socket.gethostname()
 if current_host == 'nevada':
@@ -61,44 +77,29 @@ if current_host == 'nevada':
 else:
     data_dir = './data/' + hyper_params['dataset']
 
-print(data_dir)
+
+data_transforms = get_transforms(hyper_params['dataset'])
+dset = get_dataset(hyper_params['dataset'], data_dir, data_transforms['train'], data_transforms['test'])
 
 
-def get_transforms(train_mean, train_std, test_mean, test_std):
-    return {'train': transforms.Compose([transforms.ToTensor(),
-                                         transforms.Normalize(mean=train_mean, std=train_std)]),
-            'test': transforms.Compose([transforms.ToTensor(),
-                                        transforms.Normalize(mean=test_mean, std=test_std)])
-            }
-
-data_transforms = {}
-# data_transforms['mnist'] = get_transforms(0.2860405969887955, 0.3530242445149223, 0.28684928071228494, 0.35244415324743994)
-# data_transforms['mnist'] = get_transforms(0.5, 0.5, 0.5, 0.5)
-data_transforms['mnist'] = get_transforms(100, 100, 100, 100)
-print(data_transforms['mnist']['train'])
-
-
-
-# trafo = transforms.Compose([transforms.ToTensor()])
-dset = get_dataset(hyper_params['dataset'], data_dir, data_transforms['mnist']['train'],
-                   data_transforms['mnist']['test'], True)
+# if flg_visualize:
+#     train_dataset = dset['training']
+#     fig = plt.figure(figsize=(8,8))
+#     columns = 4
+#     rows = 5
+#     for i in range(1, columns*rows +1):
+#         img_xy = np.random.randint(len(train_dataset))
+#         img = train_dataset[img_xy][0][0,:,:]
+#         fig.add_subplot(rows, columns, i)
+#         # plt.title(labels_map[train_dataset[img_xy][1]])
+#         plt.axis('off')
+#         plt.imshow(img, cmap='gray')
+#     plt.show()
 
 
 
 # # print(slurmId)
-#
-# # TODO Arguments for arg parser
-# dataset = 'Fashion-MNIST'
-# train_validate_ratio = 0.9
-# adaptiveLR = 1
-# num_runs = 5
-# num_epochs = 60
-# batch_size = 300
-#
-#
-#
-# # print(data_dir)
-#
+
 # hyper_params = {
 #     'dataset': dataset,
 #     'train_validate_ratio': train_validate_ratio,
@@ -114,62 +115,48 @@ dset = get_dataset(hyper_params['dataset'], data_dir, data_transforms['mnist']['
 #     'adaptiveLR': adaptiveLR
 # }
 
-# phases = ['train', 'validate', 'test']
-#
-# # TODO Correct normalize routines for each dataset
-# data_transforms = {'train': transforms.Compose([transforms.ToTensor(),
-#                                                 transforms.Normalize(mean=(0.5,), std=(0.5,))]),
-#                    'test': transforms.Compose([transforms.ToTensor(),
-#                                                transforms.Normalize(mean=(0.5,), std=(0.5,))])
-#                    }
-#
-# # TODO Loading routines for EMNIST, Cifar10, Cifar100
-#
-#
-# dset_training = torchvision.datasets.FashionMNIST(root=data_dir, train=True,
-#                                                   transform=data_transforms['train'], download=False)
-# train_size = int(len(dset_training) * hyper_params['train_validate_ratio'])
-# val_size = len(dset_training) - train_size
-#
-# image_datasets = {}
-# image_datasets['train'], image_datasets['validate'] = torch.utils.data.random_split(dset_training,
-#                                                                                     [train_size, val_size])
-# image_datasets['test'] = torchvision.datasets.FashionMNIST(root=data_dir, train=False,
-#                                                            transform=data_transforms['test'], download=False)
-#
-# dataloaders = {x: DataLoader(image_datasets[x], batch_size=hyper_params['batch_size'], shuffle=True) for x in phases}
-#
-# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-#
-#
-# def get_layer_params(model, lr):
-#     special_params = []
-#     for name, module in model.named_children():
-#         if len(list(module.parameters())) != 0:
-#             special_params.append(
-#                 {'params': module.parameters(), 'lr': lr}
-#             )
-#     return special_params
+phases = ['train', 'validate', 'test']
+
+# TODO Loading routines for EMNIST
 
 
-# for i in range(num_runs):
-#     experiment = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
-#                             project_name="adaptive learning rate", workspace="pmirbach",
-#                             disabled=False)
-#     experiment.log_multiple_params(hyper_params)
-#
-#     Net = CNNsmall(inp_shape=image_datasets['train'][0][0].shape)
-#     # Net = FFsmall(inp_shape=image_datasets['train'][0][0].shape)
-#     Net.to(device)
-#     criterion = nn.CrossEntropyLoss()
-#     # optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
-#
-#     params_layer = get_layer_params(Net, hyper_params['lr_initial'])
-#
-#     optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
-#     scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=hyper_params['stepLR'], gamma=0.1)
-#     train_model(Net, dataloaders, criterion, optimizer_layers, scheduler, device, experiment,
-#                 num_epochs=hyper_params['num_epochs'], ad_lr=bool(hyper_params['adaptiveLR']))
+train_size = int(len(dset['training']) * hyper_params['train_validate_ratio'])
+val_size = len(dset['training']) - train_size
+
+dset['train'], dset['validate'] = torch.utils.data.random_split(dset['training'], [train_size, val_size])
+
+dataloaders = {x: DataLoader(dset[x], batch_size=hyper_params['batchsize'], shuffle=True) for x in phases}
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+
+def get_layer_params(model, lr):
+    special_params = []
+    for name, module in model.named_children():
+        if len(list(module.parameters())) != 0:
+            special_params.append(
+                {'params': module.parameters(), 'lr': lr}
+            )
+    return special_params
+
+
+experiment = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
+                        project_name="adaptive learning rate", workspace="pmirbach",
+                        disabled=flg_comet)
+experiment.log_multiple_params(hyper_params)
+
+Net = CNNsmall(inp_shape=dset['train'][0][0].shape)
+# Net = FFsmall(inp_shape=image_datasets['train'][0][0].shape)
+Net.to(device)
+criterion = nn.CrossEntropyLoss()
+# optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
+
+params_layer = get_layer_params(Net, hyper_params['lr_initial'])
+
+optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
+scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=hyper_params['lr_step'], gamma=0.1)
+train_model(Net, dataloaders, criterion, optimizer_layers, scheduler, device, experiment,
+            num_epochs=hyper_params['num_epochs'], ad_lr=bool(hyper_params['adLR']))
 
 if __name__ == '__main__2':
 

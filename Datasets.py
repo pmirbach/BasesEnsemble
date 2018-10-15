@@ -22,8 +22,8 @@ def get_dataset(dataset, data_dir, train_transform, test_transform, flg_stats=Fa
         dsets['training'] = datasets.CIFAR10(root=data_dir, train=True, download=False, transform=train_transform)
         dsets['test'] = datasets.CIFAR10(root=data_dir, train=False, download=False, transform=test_transform)
     elif dataset == 'cifar100':
-        dsets['training'] = datasets.CIFAR10(root=data_dir, train=True, download=False, transform=train_transform)
-        dsets['test'] = datasets.CIFAR10(root=data_dir, train=False, download=False, transform=test_transform)
+        dsets['training'] = datasets.CIFAR100(root=data_dir, train=True, download=False, transform=train_transform)
+        dsets['test'] = datasets.CIFAR100(root=data_dir, train=False, download=False, transform=test_transform)
     elif dataset == 'mnist':
         dsets['training'] = datasets.MNIST(root=data_dir, train=True, download=False, transform=train_transform)
         dsets['test'] = datasets.MNIST(root=data_dir, train=False, download=False, transform=test_transform)
@@ -32,30 +32,72 @@ def get_dataset(dataset, data_dir, train_transform, test_transform, flg_stats=Fa
         dsets['test'] = datasets.FashionMNIST(root=data_dir, train=False, download=False, transform=test_transform)
 
     if flg_stats:
-        get_dset_stats(dsets)
+        get_dset_stats(dsets, False)
     return dsets
 
 
-def get_dset_stats(dsets):
+def get_transforms(dataset):
+    stats = get_normalize_stats(dataset)
+    train_mean, train_std, test_mean, test_std = stats
+    return {'train': transforms.Compose([transforms.ToTensor(),
+                                         transforms.Normalize(mean=train_mean, std=train_std)]),
+            'test': transforms.Compose([transforms.ToTensor(),
+                                        transforms.Normalize(mean=test_mean, std=test_std)])
+            }
 
-    # print(len(dsets['training']))
-    # for i in range(len(dsets['training'])):
-    #     print(type(dsets['training'].__getitem__(i)))
+def get_dset_stats(dsets, raw=True):
 
-    train_data = dsets['training'].train_data
-    test_data = dsets['test'].test_data
+    num_ch = len(dsets['training'].train_data.shape)
+
+    if raw:
+        train_data = dsets['training'].train_data
+        test_data = dsets['test'].test_data
+        if num_ch > 3:
+            train_data = np.transpose(train_data, (0, 3, 1, 2))
+            test_data = np.transpose(test_data, (0, 3, 1, 2))
+    else:
+        train_shape = dsets['training'].train_data.shape
+        test_shape = dsets['test'].test_data.shape
+        if num_ch > 3:
+            train_shape = [train_shape[i] for i in [0,3,1,2]]
+            test_shape = [test_shape[i] for i in [0,3,1,2]]
+
+        train_data = np.zeros(train_shape)
+        test_data = np.zeros(test_shape)
+
+        for i in range(len(dsets['training'])):
+            train_data[i,:,:,:] = dsets['training'][i][0].numpy()
+        for i in range(len(dsets['test'])):
+            test_data[i,:,:,:] = dsets['test'][i][0].numpy()
 
     out_str = '{}: shape: {}, mean: {}, std: {}'
-
     for phase, data in zip(['training', 'test'], [train_data, test_data]):
         if torch.is_tensor(data):
             data = data.numpy()
+        if num_ch > 3:
+            mean = np.mean(data, axis=(0,2,3)) / 255
+            std = np.std(data, axis=(0,2,3)) / 255
+        else:
+            mean = np.mean(data, axis=(0,1,2)) / 255
+            std = np.std(data, axis=(0,1,2)) / 255
+        print(out_str.format(phase, data.shape, tuple(mean), tuple(std)))
 
-        mean = np.mean(data, axis=(0,1,2)) / 255
-        std = np.std(data, axis=(0,1,2)) / 255
 
-        print(out_str.format(phase, data.shape, mean, std))
 
+def get_normalize_stats(dataset):
+    if dataset == 'mnist':
+        out = (0.1306604762738429,), (0.30810780385646264,), (0.13251460584233693,), (0.3104802479305351,)
+    elif dataset == 'fashion-mnist':
+        out = (0.2860405969887955,), (0.3530242445149223,), (0.28684928071228494,), (0.35244415324743994,)
+    elif dataset == 'cifar10':
+        out = (0.49139968, 0.48215841, 0.44653091), (0.24703223, 0.24348513, 0.26158784), \
+              (0.49421428, 0.48513139, 0.45040909), (0.24665252, 0.24289226, 0.26159238)
+    elif dataset == 'cifar100':
+        out = (0.5070751592371323, 0.48654887331495095, 0.4409178433670343), \
+              (0.26733428587924035, 0.2564384629170881, 0.2761504713256853), \
+              (0.5087964127604166, 0.48739301317401956, 0.44194221124387256), \
+              (0.2682515741720806, 0.2573637364478126, 0.2770957707973048)
+    return out
 
 class DatasetBase(Dataset):
 
