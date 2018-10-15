@@ -2,11 +2,11 @@
 
 #SBATCH --job-name="adLR"
 
-#SBATCH --output=./reports/arrayJob_%A_%a.out
-#SBATCH --error=./reports/arrayJob_%A_%a.err
+#SBATCH --output=./reports/test/arrayJob_%A_%a.out
+#SBATCH --error=./reports/test/arrayJob_%A_%a.err
 
 ##SBATCH --array=1-160%4
-#SBATCH --array=1-20%4
+#SBATCH --array=1-8:4%2
 
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=10
@@ -17,8 +17,15 @@
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=pmirbach
 
-python3.6 Main.py -d cifar10 -id $SLURM_ARRAY_TASK_ID &
-pids[$SLURM_ARRAY_TASK_ID]=$!
+for i in $(seq 0 3);
+do
+    x=$(($SLURM_ARRAY_TASK_ID+$i))
+
+    ##out=./reports/test/arrayJob_%A_$x
+
+    python3.6 Main.py -d fashion-mnist -id $x &
+    pids[$x]=$!
+done
 
 # wait for all pids
 for pid in ${pids[*]}; do
@@ -26,3 +33,4 @@ for pid in ${pids[*]}; do
 done
 
 ##python3.6 NeuralNetworks.py
+

@@ -13,8 +13,6 @@ from MyLittleHelpers import display_time, Timer, LossAccStats
 
 import pickle
 
-# TODO Split this is up in readable train_epoch, validate_epoch
-
 def train_model(model, dataloaders, criterion, optimizer, scheduler, device, experiment, num_epochs=25, ad_lr=True):
     timer = Timer(['train', 'validate'])
     stats = {x: LossAccStats(len(dataloaders[x].dataset)) for x in ['train', 'validate']}
@@ -125,36 +123,129 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, device, exp
     return model
 
 
+# TODO implement different adaptive learning functions
+
+def ad_lr_fun1(params):
+    buf = 0
+    for p in params:
+        g = p.grad.data
+        buf += g.norm(2).item()
+    return 1 + np.log(1 + 1 / buf)
+
+def ad_lr_fun1(params):
+    buf = 0
+    for p in params:
+        buf += p.norm(2).item()
+    return 1 + np.log(1 + 1 / buf)
 
 
 
-#
-# def train_model(model, dataloaders, criterion, optimizer, device, scheduler=None, num_epochs=25):
-#
-#     timer_train = Timer()
-#     best_model_weights = copy.deepcopy(model.state_dict())
-#     best_acc = 0.0
-#
-#
-#     disp_epoch = 'Epoch {f}/{f}'.format(f='{:' + str(len(str(num_epochs))) + 'd}')
-#
-#     for epoch in range(num_epochs):
-#         print(disp_epoch.format(epoch+1, num_epochs), end='', flush=True)
-#
-#         for phase in ['train', 'valid']:
-#             if phase == 'train':
-#                 model.train()
-#             elif phase == 'valid':
-#                 model.eval()
-#
-#             running_loss = 0.0
-#             running_corrects = 0
-#
-#             for i, data in enumerate(dataloaders[phase]):
-#                 inputs, labels = data[0].to(device), data[1].to(device)
-#
-#     pass
-#
+def train_epoch(model, dataloader, criterion, optimizer, device, comet_exp=None, ad_lr=0):
+
+    model.train()
+
+    stats = LossAccStats(len(dataloader.dataset))
+    if ad_lr is not None:
+        epoch_lr = optimizer.param_groups[0]['lr']
+        def layer_lr_reset():
+            for group in optimizer.param_groups:
+                group['lr'] = epoch_lr
+
+    for inputs, labels in dataloader:
+        num_inp = inputs.size(0)
+        inputs, labels = inputs.to(device), labels.to(device)
+        optimizer.zero_grad()
+
+        outputs = model(inputs)
+        _, preds = torch.max(outputs, 1)
+        loss = criterion(outputs, labels)
+
+        def closure():
+            loss.backward()
+
+            if ad_lr is not None:
+                for group in optimizer.param_groups:
+                    fac = ad_lr_fun1(group['params'])
+                    group['lr'] *= fac
+            return loss
+
+        optimizer.step(closure)
+        if ad_lr is not None:
+            layer_lr_reset()
+
+        stats.update(loss.item(), torch.sum(preds == labels.data).item(), num_inp)
+        step_loss, step_acc = stats.get_stats()
+
+        if comet_exp is not None:
+            comet_exp.log_metric('train_loss', step_loss)
+
+    epoch_loss, epoch_acc = stats.get_stats_epoch()
+    return epoch_loss, epoch_acc
+
+
+def validate_model(model, dataloader, criterion, device):
+
+    model.eval()
+
+    stats = LossAccStats(len(dataloader.dataset))
+
+    for inputs, labels in dataloader:
+        num_inp = inputs.size(0)
+        inputs, labels = inputs.to(device), labels.to(device)
+
+        outputs = model(inputs)
+        _, preds = torch.max(outputs, 1)
+        loss = criterion(outputs, labels)
+
+        stats.update(loss.item(), torch.sum(preds == labels.data).item(), num_inp)
+
+    epoch_loss, epoch_acc = stats.get_stats_epoch()
+    return epoch_loss, epoch_acc
+
+
+def training(model, dataloaders, criterion, optimizer, scheduler, device, comet_exp, num_epochs=25, ad_lr=0):
+    timer = Timer(['train', 'validate'])
+    # steps = {x: 0 for x in ['train', 'validate']}
+
+    best_model_wts = copy.deepcopy(model.state_dict())
+    best_acc = 0.0
+
+    disp_epoch = 'Epoch {f}/{f}'.format(f='{:' + str(len(str(num_epochs))) + 'd}')
+    disp_phase_stats = ' - {}: [{:>7.4f}, {:>7.3f}%]'
+    disp_time_remaining = ' - Approx. time left: {}'
+
+    for epoch in range(num_epochs):
+        scheduler.step()
+        train_epoch_loss, train_epoch_acc = train_epoch(model, dataloaders['train'], criterion, optimizer, device,
+                                            comet_exp=None, ad_lr=ad_lr)
+        train_epoch_time = timer.step('train')
+
+        validate_epoch_loss, validate_epoch_acc = validate_model(model, dataloaders['validate'], criterion, device)
+        validate_epoch_time = timer.step('validate')
+
+        if validate_epoch_acc > best_acc:
+            best_model_wts = copy.deepcopy(model.state_dict())
+            best_acc = validate_epoch_acc
+
+        comet_log = {'train_accuracy': train_epoch_acc, 'validate_accuracy': validate_epoch_acc,
+                     'train_time': train_epoch_time, 'validate_time': validate_epoch_time}
+        comet_exp.log_multiple_metrics(comet_log, step=epoch+1)
+        comet_exp.log_epoch_end(epoch_cnt=epoch+1)
+
+        time_estimate = timer.get_avg_time_all(num_avg=5) * (num_epochs - (epoch + 1))
+
+        print(disp_epoch.format(epoch + 1, num_epochs),
+              disp_phase_stats.format('train', train_epoch_loss, train_epoch_acc),
+              disp_phase_stats.format('train', validate_epoch_loss, validate_epoch_acc),
+              disp_time_remaining.format(display_time(time_estimate)), flush=True)
+
+    time_elapsed = timer.total_time()
+    print('Training complete in {} - Best validation Acc: {:4f}'.format(display_time(time_elapsed), best_acc))
+
+    # load best model weights
+    model.load_state_dict(best_model_wts)
+
+    return model
 
 
 
@@ -202,11 +293,6 @@ def _params_from_ctrl(opti_ctrl, Net):
         params.append({'params': _gen_name_to_param(group_names, name_param_map)})
 
     return params
-
-#TODO Get this into another module (?)
-
-def train_epoch():
-    pass
 
 
 class Training():
