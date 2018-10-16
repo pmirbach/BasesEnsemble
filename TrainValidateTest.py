@@ -132,7 +132,7 @@ def ad_lr_fun1(params):
         buf += g.norm(2).item()
     return 1 + np.log(1 + 1 / buf)
 
-def ad_lr_fun1(params):
+def ad_lr_fun2(params):
     buf = 0
     for p in params:
         buf += p.norm(2).item()
@@ -227,7 +227,8 @@ def training(model, dataloaders, criterion, optimizer, scheduler, device, comet_
             best_model_wts = copy.deepcopy(model.state_dict())
             best_acc = validate_epoch_acc
 
-        comet_log = {'train_accuracy': train_epoch_acc, 'validate_accuracy': validate_epoch_acc,
+        comet_log = {'train_loss': train_epoch_loss,
+                     'train_accuracy': train_epoch_acc, 'validate_accuracy': validate_epoch_acc,
                      'train_time': train_epoch_time, 'validate_time': validate_epoch_time}
         comet_exp.log_multiple_metrics(comet_log, step=epoch+1)
         comet_exp.log_epoch_end(epoch_cnt=epoch+1)

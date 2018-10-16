@@ -117,7 +117,7 @@ def get_layer_params(model, lr):
     return special_params
 
 comet_exp = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
-                        project_name="adaptive learning rate - test", workspace="pmirbach",
+                        project_name="adaptive learning rate new", workspace="pmirbach",
                         disabled=flg_comet)
 comet_exp.log_multiple_params(hyper_params)
 
@@ -133,13 +133,13 @@ optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
 scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=hyper_params['lr_step'], gamma=0.1)
 
 
-# Net = training(Net, dataloaders, criterion, optimizer_layers, scheduler, device, comet_exp,
-#                num_epochs=hyper_params['num_epochs'], ad_lr=bool(hyper_params['adLR']))
-#
-# test_loss, test_acc = validate_model(Net, dataloaders['test'], criterion, device)
-# print('test - : [{:>7.4f}, {:>7.3f}%]'.format(test_loss, test_acc))
-#
-# comet_exp.log_multiple_metrics({'test_loss': test_loss, 'test_accuracy': test_acc})
+Net = training(Net, dataloaders, criterion, optimizer_layers, scheduler, device, comet_exp,
+               num_epochs=hyper_params['num_epochs'], ad_lr=bool(hyper_params['adLR']))
+
+test_loss, test_acc = validate_model(Net, dataloaders['test'], criterion, device)
+print('test - : [{:>7.4f}, {:>7.3f}%]'.format(test_loss, test_acc))
+
+comet_exp.log_multiple_metrics({'test_loss': test_loss, 'test_accuracy': test_acc})
 
 
 if __name__ == '__main__2':
