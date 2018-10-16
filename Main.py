@@ -133,6 +133,14 @@ optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
 scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=hyper_params['lr_step'], gamma=0.1)
 
 
+### Adaptive layer learning
+def adlr_1(x):
+    return 1 + np.log(1 + 1 / x)
+def adlr_2(x):
+    return 1
+
+
+
 Net = training(Net, dataloaders, criterion, optimizer_layers, scheduler, device, comet_exp,
                num_epochs=hyper_params['num_epochs'], ad_lr=bool(hyper_params['adLR']))
 

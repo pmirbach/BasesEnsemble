@@ -216,8 +216,8 @@ def training(model, dataloaders, criterion, optimizer, scheduler, device, comet_
 
     for epoch in range(num_epochs):
         scheduler.step()
-        train_epoch_loss, train_epoch_acc = train_epoch(model, dataloaders['train'], criterion, optimizer, device,
-                                            comet_exp=None, ad_lr=ad_lr)
+        train_epoch_loss, train_epoch_acc = train_epoch(model, dataloaders['train'], criterion, optimizer,
+                                                        device, ad_lr=ad_lr)
         train_epoch_time = timer.step('train')
 
         validate_epoch_loss, validate_epoch_acc = validate_model(model, dataloaders['validate'], criterion, device)
@@ -227,7 +227,7 @@ def training(model, dataloaders, criterion, optimizer, scheduler, device, comet_
             best_model_wts = copy.deepcopy(model.state_dict())
             best_acc = validate_epoch_acc
 
-        comet_log = {'train_loss': train_epoch_loss,
+        comet_log = {'train_loss': train_epoch_loss, 'validation_loss': validate_epoch_loss,
                      'train_accuracy': train_epoch_acc, 'validate_accuracy': validate_epoch_acc,
                      'train_time': train_epoch_time, 'validate_time': validate_epoch_time}
         comet_exp.log_multiple_metrics(comet_log, step=epoch+1)
