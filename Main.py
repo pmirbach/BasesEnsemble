@@ -139,10 +139,17 @@ def adlr_1(x):
 def adlr_2(x):
     return 1
 
+if hyper_params['adLR'] == 0:
+    adlr_fun = None
+elif hyper_params['adLR'] == 1:
+    adlr_fun = adlr_1
+elif hyper_params['adLR'] == 2:
+    adlr_fun = adlr_2
+
 
 
 Net = training(Net, dataloaders, criterion, optimizer_layers, scheduler, device, comet_exp,
-               num_epochs=hyper_params['num_epochs'], ad_lr=bool(hyper_params['adLR']))
+               num_epochs=hyper_params['num_epochs'], adlr_fun=adlr_fun)
 
 test_loss, test_acc = validate_model(Net, dataloaders['test'], criterion, device)
 print('test - : [{:>7.4f}, {:>7.3f}%]'.format(test_loss, test_acc))

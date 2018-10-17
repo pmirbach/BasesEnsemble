@@ -125,27 +125,27 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, device, exp
 
 # TODO implement different adaptive learning functions
 
-def ad_lr_fun1(params):
-    buf = 0
-    for p in params:
-        g = p.grad.data
-        buf += g.norm(2).item()
-    return 1 + np.log(1 + 1 / buf)
+# def ad_lr_fun1(params):
+#     buf = 0
+#     for p in params:
+#         g = p.grad.data
+#         buf += g.norm(2).item()
+#     return 1 + np.log(1 + 1 / buf)
+#
+# def ad_lr_fun2(params):
+#     buf = 0
+#     for p in params:
+#         buf += p.norm(2).item()
+#     return 1 + np.log(1 + 1 / buf)
 
-def ad_lr_fun2(params):
-    buf = 0
-    for p in params:
-        buf += p.norm(2).item()
-    return 1 + np.log(1 + 1 / buf)
 
 
-
-def train_epoch(model, dataloader, criterion, optimizer, device, comet_exp=None, ad_lr=0):
+def train_epoch(model, dataloader, criterion, optimizer, device, comet_exp=None, adlr_fun=None):
 
     model.train()
 
     stats = LossAccStats(len(dataloader.dataset))
-    if ad_lr is not None:
+    if adlr_fun is not None:
         epoch_lr = optimizer.param_groups[0]['lr']
         def layer_lr_reset():
             for group in optimizer.param_groups:
@@ -163,14 +163,20 @@ def train_epoch(model, dataloader, criterion, optimizer, device, comet_exp=None,
         def closure():
             loss.backward()
 
-            if ad_lr is not None:
+            if adlr_fun is not None:
                 for group in optimizer.param_groups:
-                    fac = ad_lr_fun1(group['params'])
+
+                    grad_norm = 0
+                    for p in group['params']:
+                        g = p.grad.data
+                        grad_norm += g.norm(2).item()
+
+                    fac = adlr_fun(grad_norm)
                     group['lr'] *= fac
             return loss
 
         optimizer.step(closure)
-        if ad_lr is not None:
+        if adlr_fun is not None:
             layer_lr_reset()
 
         stats.update(loss.item(), torch.sum(preds == labels.data).item(), num_inp)
@@ -203,7 +209,7 @@ def validate_model(model, dataloader, criterion, device):
     return epoch_loss, epoch_acc
 
 
-def training(model, dataloaders, criterion, optimizer, scheduler, device, comet_exp, num_epochs=25, ad_lr=0):
+def training(model, dataloaders, criterion, optimizer, scheduler, device, comet_exp, num_epochs=25, adlr_fun=None):
     timer = Timer(['train', 'validate'])
     # steps = {x: 0 for x in ['train', 'validate']}
 
@@ -217,7 +223,7 @@ def training(model, dataloaders, criterion, optimizer, scheduler, device, comet_
     for epoch in range(num_epochs):
         scheduler.step()
         train_epoch_loss, train_epoch_acc = train_epoch(model, dataloaders['train'], criterion, optimizer,
-                                                        device, ad_lr=ad_lr)
+                                                        device, adlr_fun=adlr_fun)
         train_epoch_time = timer.step('train')
 
         validate_epoch_loss, validate_epoch_acc = validate_model(model, dataloaders['validate'], criterion, device)

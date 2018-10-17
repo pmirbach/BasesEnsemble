@@ -6,7 +6,7 @@
 #SBATCH --error=./reports/test/arrayJob_%A_%a.err
 
 ##SBATCH --array=1-160%4
-#SBATCH --array=1-160:7%2
+#SBATCH --array=1-14:7%2
 
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=20
@@ -19,10 +19,7 @@
 
 for i in $(seq 0 6); do
     x=$(($SLURM_ARRAY_TASK_ID+$i))
-
-    ##out=./reports/test/arrayJob_%A_$x
-
-    python3.6 Main.py -d fashion-mnist -c -id $x &
+    python3.6 Main.py -d fashion-mnist -id $x &
     pids[$x]=$!
 done
 
@@ -32,4 +29,5 @@ for pid in ${pids[*]}; do
 done
 
 ##python3.6 NeuralNetworks.py
+
 
