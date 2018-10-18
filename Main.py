@@ -59,16 +59,41 @@ hyper_params = vars(args)
 flg_comet = not hyper_params.pop('comet')
 slurmId = hyper_params.pop('slurmId')
 
-if slurmId is not None:
-    batch_sizes = tuple((i * 50 for i in range(1,9)))
-    adlrs = (0, 1)
-    res = product(batch_sizes, adlrs)
-    res_total = [x for x in res for _ in range(10)]
 
-    hyper_params['batchsize'], hyper_params['adLR'] = res_total[slurmId]
+run = 0
+if slurmId is not None:
+
+    def get_options(id, features, num_statistical=1):
+        combinations = product(*features.values())
+        comb_list = (list(combinations))
+
+        t, run = divmod(id, num_statistical)
+
+        if id >= len(comb_list) * num_statistical:
+            raise ValueError('id surpasses expected number of runs!')
+        if t >= len(comb_list):
+            raise ValueError('test2')
+
+        d = dict((key, value) for (key, value) in zip(features.keys(), comb_list[t]))
+        return d, run
+
+
+    features = {'batchsize': [50, 100, 150, 200, 250, 300, 350, 400], 'adLR': [0, 1]}
+    param_update, run = get_options(slurmId, features, num_statistical=20)
+
+    for key, value in param_update.items():
+        hyper_params[key] = value
+
+
+# print('id: {}, bs: {}, run: {}, adlr: {}'.format(slurmId, hyper_params['batchsize'], run, hyper_params['adLR']))
+# print(param_update)
+# print(run)
+
+
+
 
 print(hyper_params)
-print(slurmId)
+# print(slurmId)
 
 current_host = socket.gethostname()
 if current_host == 'nevada':
@@ -117,7 +142,7 @@ def get_layer_params(model, lr):
     return special_params
 
 comet_exp = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
-                        project_name="adaptive learning rate new", workspace="pmirbach",
+                        project_name="adaptive learning rate gradient", workspace="pmirbach",
                         disabled=flg_comet)
 comet_exp.log_multiple_params(hyper_params)
 
@@ -148,13 +173,24 @@ elif hyper_params['adLR'] == 2:
 
 
 
-Net = training(Net, dataloaders, criterion, optimizer_layers, scheduler, device, comet_exp,
+Net, stats = training(Net, dataloaders, criterion, optimizer_layers, scheduler, device, comet_exp,
                num_epochs=hyper_params['num_epochs'], adlr_fun=adlr_fun)
 
 test_loss, test_acc = validate_model(Net, dataloaders['test'], criterion, device)
 print('test - : [{:>7.4f}, {:>7.3f}%]'.format(test_loss, test_acc))
 
 comet_exp.log_multiple_metrics({'test_loss': test_loss, 'test_accuracy': test_acc})
+
+
+result_path = './results/ex1/fashion-mnist/'
+result_file = 'bs' + str(hyper_params['batchsize']) + 'adLR' + str(hyper_params['adLR']) + '_run' + str(run) + '.pkl'
+
+outfile = open(result_path + result_file, 'wb')
+pickle.dump((hyper_params, stats),outfile)
+outfile.close()
+
+
+
 
 
 if __name__ == '__main__2':

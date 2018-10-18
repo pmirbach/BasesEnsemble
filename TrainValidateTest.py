@@ -213,6 +213,9 @@ def training(model, dataloaders, criterion, optimizer, scheduler, device, comet_
     timer = Timer(['train', 'validate'])
     # steps = {x: 0 for x in ['train', 'validate']}
 
+    out_stats = {'train_loss': [], 'validate_loss': [], 'train_accuracy':[], 'validate_accuracy':[],
+                 'train_time': [], 'validate_time': []}
+
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
 
@@ -233,11 +236,18 @@ def training(model, dataloaders, criterion, optimizer, scheduler, device, comet_
             best_model_wts = copy.deepcopy(model.state_dict())
             best_acc = validate_epoch_acc
 
-        comet_log = {'train_loss': train_epoch_loss, 'validation_loss': validate_epoch_loss,
+        comet_log = {'train_loss': train_epoch_loss, 'validate_loss': validate_epoch_loss,
                      'train_accuracy': train_epoch_acc, 'validate_accuracy': validate_epoch_acc,
                      'train_time': train_epoch_time, 'validate_time': validate_epoch_time}
         comet_exp.log_multiple_metrics(comet_log, step=epoch+1)
         comet_exp.log_epoch_end(epoch_cnt=epoch+1)
+
+        out_stats['train_loss'].append(train_epoch_loss)
+        out_stats['validate_loss'].append(validate_epoch_loss)
+        out_stats['train_accuracy'].append(train_epoch_acc)
+        out_stats['validate_accuracy'].append(validate_epoch_acc)
+        out_stats['train_time'].append(train_epoch_time)
+        out_stats['validate_time'].append(validate_epoch_time)
 
         time_estimate = timer.get_avg_time_all(num_avg=5) * (num_epochs - (epoch + 1))
 
@@ -252,7 +262,7 @@ def training(model, dataloaders, criterion, optimizer, scheduler, device, comet_
     # load best model weights
     model.load_state_dict(best_model_wts)
 
-    return model
+    return model, out_stats
 
 
 

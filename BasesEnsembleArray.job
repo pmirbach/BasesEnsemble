@@ -6,7 +6,7 @@
 #SBATCH --error=./reports/test/arrayJob_%A_%a.err
 
 ##SBATCH --array=1-160%4
-#SBATCH --array=1-14:7%2
+#SBATCH --array=0-320:11%2
 
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=20
@@ -17,9 +17,10 @@
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=pmirbach
 
-for i in $(seq 0 6); do
+for i in $(seq 0 10); do
     x=$(($SLURM_ARRAY_TASK_ID+$i))
     python3.6 Main.py -d fashion-mnist -id $x &
+    sleep 1
     pids[$x]=$!
 done
 
