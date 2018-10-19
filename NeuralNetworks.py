@@ -13,6 +13,7 @@ import numpy as np
 from MyLittleHelpers import prod, sep
 import time
 
+from torchvision import models
 
 # TODO Write NN class with variable overall structure: Arbitrary number of layers - different compositions of layers etc.
 
@@ -42,79 +43,6 @@ def inp_split_ensemble(data, device):
     inputs = [inp.to(device) for inp in inputs]
     labels = data[1].to(device)
     return inputs, labels
-
-
-def train_Net_standard(Net, train_loader, N_epoch, criterion, optimizer, device, inp_split=None):
-    Net.to(device)
-    time_epoch = np.zeros((N_epoch,))
-
-    print('Start Training...')
-
-    for epoch in range(N_epoch):
-
-        t0_epoch = time.time()
-        epoch_loss = 0
-
-        for i, data in enumerate(train_loader, start=0):
-
-            if inp_split is None:
-                inputs, labels = data[0].to(device), data[1].to(device)
-            else:
-                inputs, labels = inp_split(data, device)
-            # inputs = data[0]
-            # inputs = [inp.to(device) for inp in inputs]
-            #
-            # labels = data[1].to(device)
-
-            optimizer.zero_grad()
-            outputs = Net(inputs)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-
-            epoch_loss += loss.item()
-
-        time_epoch[epoch] = time.time() - t0_epoch
-        time_left_est = (N_epoch - (epoch + 1)) * np.mean(time_epoch[time_epoch.nonzero()])
-
-        print("===> Epoch [{:2d}] / {}: Loss: {:.4f} - Approx. {:5.1f} seconds left".format(
-            epoch + 1, N_epoch, epoch_loss / len(train_loader), time_left_est))
-
-    print('Finished Training - Duration: {0:5.1f} seconds'.format(np.sum(time_epoch)))
-
-
-def validate_Net_standard(Net, test_loader, device, inp_split=None):
-    Net.eval()
-    num_images = len(test_loader.dataset)
-    batchsize = test_loader.batch_size
-
-    res = np.zeros(num_images)
-    with torch.no_grad():
-        for i, data in enumerate(test_loader):
-
-            if inp_split is None:
-                inputs, labels = data[0].to(device), data[1].to(device)
-            else:
-                inputs, labels = inp_split(data, device)
-            # inputs = data[0]
-            # inputs = [inp.to(device) for inp in inputs]
-            #
-            # labels = data[1].to(device)
-
-            # inputs, labels = data[0].to(device), data[1].to(device)
-
-            outputs = Net(inputs)
-            _, predicted = torch.max(outputs.data, 1)
-
-            comp = predicted == labels
-
-            try:
-                res[i * batchsize: (i + 1) * batchsize] = comp
-            except ValueError:
-                res[-comp.shape[0]:] = comp
-
-    print('Accuracy of the network on the {} test images: {} %'.format(num_images, 100 * np.sum(res) / num_images))
-    return res
 
 
 class ResBlockLinear(nn.Module):
@@ -169,13 +97,6 @@ class ResNetLinear(nn.Module):
         x = self.post(x)
         return x
 
-    def train_Net(self, train_loader, N_epoch, criterion, optimizer, device):
-        train_Net_standard(self, train_loader, N_epoch, criterion, optimizer, device)
-
-    def validate_Net(self, test_loader, device):
-        self.predictions = validate_Net_standard(self, test_loader, device)
-        return self.predictions
-
 
 class CNNsmall(nn.Module):
     """
@@ -222,13 +143,6 @@ class CNNsmall(nn.Module):
         x = x.view(-1, self.num_flat_features)
         x = F.relu(self.fc1(x))
         return F.relu(self.fc2(x))
-
-    def train_Net(self, train_loader, N_epoch, criterion, optimizer, device):
-        train_Net_standard(self, train_loader, N_epoch, criterion, optimizer, device)
-
-    def validate_Net(self, test_loader, device):
-        self.predictions = validate_Net_standard(self, test_loader, device)
-        return self.predictions
 
 
 class FFsmall(nn.Module):
@@ -300,13 +214,6 @@ class FFsmall(nn.Module):
         x = F.relu(self.fc3(x))
         return F.relu(self.fc4(x))
 
-    def train_Net(self, train_loader, N_epoch, criterion, optimizer, device):
-        train_Net_standard(self, train_loader, N_epoch, criterion, optimizer, device)
-
-    def validate_Net(self, test_loader, device):
-        self.predictions = validate_Net_standard(self, test_loader, device)
-        return self.predictions
-
 
 class TryNet(nn.Module):
     def __init__(self):
@@ -352,90 +259,87 @@ class EnsembleMLP(nn.Module):
         x = self.fc3(x)
         return self.fc4(x)
 
-    def train_Net(self, train_loader, N_epoch, criterion, optimizer, device):
-        train_Net_standard(self, train_loader, N_epoch, criterion, optimizer, device, inp_split_ensemble)
-
-    def validate_Net(self, test_loader, device):
-        self.predictions = validate_Net_standard(self, test_loader, device, inp_split_ensemble)
-        return self.predictions
-
 
 if __name__ == '__main__':
-    x_real = torch.randn(4, 1, 28, 28)
-    x_ft = torch.randn(4, 2, 28, 28)
 
-    # CNet = CNNsmall(x_real.size())
-    FFNet = FFsmall(x_ft.size())
-    # EnsNet = EnsembleMLP([CNet, FFNet])
+    vgg11 = models.vgg11(pretrained=False)
+    print(vgg11)
 
-    ResNetLinear = ResNetLinear(x_ft.size())
-
-
-    # for child in CNet.children():
-    #     print(type(child.bias()))
-    #     print(child)
-
-    def inspec_Net(Net):
-        print(Net)
-        print()
-        for child in Net.children():
-
-            print(child)
-
-            if hasattr(child, 'weight'):
-                print('has weight')
-                print(child.weight.requires_grad)
-            if hasattr(child, 'bias'):
-                if child.bias is not None:
-                    print('has bias')
-                    print(child.bias.requires_grad)
-
-            for param in child.parameters():
-                print(param.size())
-            print()
-
-
-    ResNetLinear(x_ft)
-    FFNet(x_ft)
-
-    # inspec_Net(ResNetLinear)
-
-    # for child in FFNet.children():
-    #     set_grad_false(child)
-
-    # inspec_Net(FFNet)
-
-    # for param in EnsNet.parameters():
-    #     print(param.size())
-
-    # # sep()
-    # # print(EnsNet.parameters())
-    # # sep()
-    # # CNet.train_Net(x_real)
+    # x_real = torch.randn(4, 1, 28, 28)
+    # x_ft = torch.randn(4, 2, 28, 28)
     #
-    # # _x_real = CNet.forward(x_real)
-    # # _x_ft = FFNet.forward(x_ft)
-    # # _x_ens = EnsNet([x_real, x_ft])
+    # # CNet = CNNsmall(x_real.size())
+    # FFNet = FFsmall(x_ft.size())
+    # # EnsNet = EnsembleMLP([CNet, FFNet])
     #
-    # transform = torchvision.transforms.Compose([
-    #     torchvision.transforms.ToTensor(),
-    #     torchvision.transforms.Normalize(mean=(0.5,), std=(0.5,))
-    # ])
-    #
-    # train_set = torchvision.datasets.MNIST(root="./data/", train=True, transform=transform, download=True)
-    # train_loader = DataLoader(dataset=train_set, batch_size=64, shuffle=True, num_workers=10)
-    # test_set = torchvision.datasets.MNIST(root="./data/", train=False, transform=transform, download=True)
-    # test_loader = DataLoader(dataset=test_set, batch_size=64, shuffle=False, num_workers=10)
-    #
-    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    #
-    # criterion = nn.CrossEntropyLoss()
-    # optimizer = optim.SGD(CNet.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
-    # optimizer = optim.SGD(FFNet.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
+    # ResNetLinear = ResNetLinear(x_ft.size())
     #
     #
-    # # CNet.train_Net(train_loader, 10, criterion, optimizer, device)
-    # FFNet.train_Net(train_loader, 10, criterion, optimizer, device)
+    # # for child in CNet.children():
+    # #     print(type(child.bias()))
+    # #     print(child)
     #
-    # # pred = CNet.validate_Net(test_loader, device)
-    # pred = FFNet.validate_Net(test_loader, device)
+    # def inspec_Net(Net):
+    #     print(Net)
+    #     print()
+    #     for child in Net.children():
+    #
+    #         print(child)
+    #
+    #         if hasattr(child, 'weight'):
+    #             print('has weight')
+    #             print(child.weight.requires_grad)
+    #         if hasattr(child, 'bias'):
+    #             if child.bias is not None:
+    #                 print('has bias')
+    #                 print(child.bias.requires_grad)
+    #
+    #         for param in child.parameters():
+    #             print(param.size())
+    #         print()
+    #
+    #
+    # ResNetLinear(x_ft)
+    # FFNet(x_ft)
+    #
+    # # inspec_Net(ResNetLinear)
+    #
+    # # for child in FFNet.children():
+    # #     set_grad_false(child)
+    #
+    # # inspec_Net(FFNet)
+    #
+    # # for param in EnsNet.parameters():
+    # #     print(param.size())
+    #
+    # # # sep()
+    # # # print(EnsNet.parameters())
+    # # # sep()
+    # # # CNet.train_Net(x_real)
+    # #
+    # # # _x_real = CNet.forward(x_real)
+    # # # _x_ft = FFNet.forward(x_ft)
+    # # # _x_ens = EnsNet([x_real, x_ft])
+    # #
+    # # transform = torchvision.transforms.Compose([
+    # #     torchvision.transforms.ToTensor(),
+    # #     torchvision.transforms.Normalize(mean=(0.5,), std=(0.5,))
+    # # ])
+    # #
+    # # train_set = torchvision.datasets.MNIST(root="./data/", train=True, transform=transform, download=True)
+    # # train_loader = DataLoader(dataset=train_set, batch_size=64, shuffle=True, num_workers=10)
+    # # test_set = torchvision.datasets.MNIST(root="./data/", train=False, transform=transform, download=True)
+    # # test_loader = DataLoader(dataset=test_set, batch_size=64, shuffle=False, num_workers=10)
+    # #
+    # # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # #
+    # # criterion = nn.CrossEntropyLoss()
+    # # optimizer = optim.SGD(CNet.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
+    # # optimizer = optim.SGD(FFNet.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
+    # #
+    # #
+    # # # CNet.train_Net(train_loader, 10, criterion, optimizer, device)
+    # # FFNet.train_Net(train_loader, 10, criterion, optimizer, device)
+    # #
+    # # # pred = CNet.validate_Net(test_loader, device)
+    # # pred = FFNet.validate_Net(test_loader, device)

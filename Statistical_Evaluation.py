@@ -55,7 +55,7 @@ for data in results.values():
         data[metric]['std'] = np.std(data[metric]['all'], axis=1)
 
 
-plot_bs = 250
+plot_bs = 200
 
 x = np.arange(1,61)
 
@@ -78,6 +78,8 @@ for key in [(plot_bs, 0), (plot_bs, 1)]:
     plt.plot(x, mean, color=c, label=label)
     plt.fill_between(x, mean-std, mean+std, facecolor=fc, edgecolor=ec)
 
+plt.axis([1,61,70,95])
+# plt.axis('scaled')
 plt.legend(loc='lower right')
 plt.show()
 

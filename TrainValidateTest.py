@@ -139,8 +139,22 @@ def train_model(model, dataloaders, criterion, optimizer, scheduler, device, exp
 #     return 1 + np.log(1 + 1 / buf)
 
 
+def track_weights_gradients(groups):
 
-def train_epoch(model, dataloader, criterion, optimizer, device, comet_exp=None, adlr_fun=None):
+    num_layers = len(groups)
+    layer_weights_norm = np.zeros((num_layers,))
+    layer_gradients_norm = np.zeros((num_layers,))
+
+    for i, group in enumerate(groups):
+        for p in group['params']:
+            layer_weights_norm[i] += p.norm(2).item()
+            layer_gradients_norm[i] += p.grad.data.norm(2).item()
+
+    return layer_weights_norm, layer_gradients_norm
+
+
+
+def train_epoch(model, dataloader, criterion, optimizer, device, comet_exp=None, adlr_fun=None, norm_tracker=True):
 
     model.train()
 
@@ -150,6 +164,12 @@ def train_epoch(model, dataloader, criterion, optimizer, device, comet_exp=None,
         def layer_lr_reset():
             for group in optimizer.param_groups:
                 group['lr'] = epoch_lr
+
+    if norm_tracker:
+        num_steps = len(dataloader)
+        num_layers = len(optimizer.param_groups)
+        weight_gradient_norms = np.zeros((num_layers, num_steps, 2))
+        norm_step = 0
 
     for inputs, labels in dataloader:
         num_inp = inputs.size(0)
@@ -162,6 +182,9 @@ def train_epoch(model, dataloader, criterion, optimizer, device, comet_exp=None,
 
         def closure():
             loss.backward()
+
+            if norm_tracker:
+                weight_gradient_norms[:,norm_step,0], weight_gradient_norms[:,norm_step,1] = track_weights_gradients(optimizer.param_groups)
 
             if adlr_fun is not None:
                 for group in optimizer.param_groups:
@@ -176,6 +199,9 @@ def train_epoch(model, dataloader, criterion, optimizer, device, comet_exp=None,
             return loss
 
         optimizer.step(closure)
+
+        norm_step += 1
+
         if adlr_fun is not None:
             layer_lr_reset()
 
@@ -186,7 +212,10 @@ def train_epoch(model, dataloader, criterion, optimizer, device, comet_exp=None,
             comet_exp.log_metric('train_loss', step_loss)
 
     epoch_loss, epoch_acc = stats.get_stats_epoch()
-    return epoch_loss, epoch_acc
+    if norm_tracker:
+        return epoch_loss, epoch_acc, weight_gradient_norms
+    else:
+        return epoch_loss, epoch_acc
 
 
 def validate_model(model, dataloader, criterion, device):
@@ -216,6 +245,9 @@ def training(model, dataloaders, criterion, optimizer, scheduler, device, comet_
     out_stats = {'train_loss': [], 'validate_loss': [], 'train_accuracy':[], 'validate_accuracy':[],
                  'train_time': [], 'validate_time': []}
 
+    # tack the weights, gradients norms
+    weight_gradient_norms = []
+
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
 
@@ -225,8 +257,9 @@ def training(model, dataloaders, criterion, optimizer, scheduler, device, comet_
 
     for epoch in range(num_epochs):
         scheduler.step()
-        train_epoch_loss, train_epoch_acc = train_epoch(model, dataloaders['train'], criterion, optimizer,
-                                                        device, adlr_fun=adlr_fun)
+        train_epoch_loss, train_epoch_acc, weight_gradient_norms_epoch = train_epoch(model, dataloaders['train'],
+                                                                                     criterion, optimizer, device, adlr_fun=adlr_fun)
+        weight_gradient_norms.append(weight_gradient_norms_epoch)
         train_epoch_time = timer.step('train')
 
         validate_epoch_loss, validate_epoch_acc = validate_model(model, dataloaders['validate'], criterion, device)
@@ -262,7 +295,7 @@ def training(model, dataloaders, criterion, optimizer, scheduler, device, comet_
     # load best model weights
     model.load_state_dict(best_model_wts)
 
-    return model, out_stats
+    return model, out_stats, weight_gradient_norms
 
 
 

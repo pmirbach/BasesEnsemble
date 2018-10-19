@@ -173,7 +173,8 @@ elif hyper_params['adLR'] == 2:
 
 
 
-Net, stats = training(Net, dataloaders, criterion, optimizer_layers, scheduler, device, comet_exp,
+
+Net, stats, weight_gradient_norms = training(Net, dataloaders, criterion, optimizer_layers, scheduler, device, comet_exp,
                num_epochs=hyper_params['num_epochs'], adlr_fun=adlr_fun)
 
 test_loss, test_acc = validate_model(Net, dataloaders['test'], criterion, device)
@@ -182,11 +183,13 @@ print('test - : [{:>7.4f}, {:>7.3f}%]'.format(test_loss, test_acc))
 comet_exp.log_multiple_metrics({'test_loss': test_loss, 'test_accuracy': test_acc})
 
 
-result_path = './results/ex1/fashion-mnist/'
-result_file = 'bs' + str(hyper_params['batchsize']) + 'adLR' + str(hyper_params['adLR']) + '_run' + str(run) + '.pkl'
+result_path = './results/ex1_2/fashion-mnist/'
+# result_file = 'bs' + str(hyper_params['batchsize']) + 'adLR' + str(hyper_params['adLR']) + '_run' + str(run) + '.pkl'
+result_file = 'weigths_grads_norm' + '_adLR' + str(hyper_params['adLR']) + '.pkl'
+
 
 outfile = open(result_path + result_file, 'wb')
-pickle.dump((hyper_params, stats), outfile)
+pickle.dump((hyper_params, stats, weight_gradient_norms), outfile)
 outfile.close()
 
 
