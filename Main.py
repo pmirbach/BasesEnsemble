@@ -186,7 +186,7 @@ result_path = './results/ex1/fashion-mnist/'
 result_file = 'bs' + str(hyper_params['batchsize']) + 'adLR' + str(hyper_params['adLR']) + '_run' + str(run) + '.pkl'
 
 outfile = open(result_path + result_file, 'wb')
-pickle.dump((hyper_params, stats),outfile)
+pickle.dump((hyper_params, stats), outfile)
 outfile.close()
 
 
