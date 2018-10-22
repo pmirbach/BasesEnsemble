@@ -39,9 +39,8 @@ for i in range(320):
     result_path = './results/ex1/fashion-mnist/'
     result_file = 'bs' + str(params['batchsize']) + 'adLR' + str(params['adLR']) + '_run' + str(run) + '.pkl'
 
-    infile = open(result_path + result_file, 'rb')
-    (hyper_params, stats) = pickle.load(infile)
-    infile.close()
+    with open(result_path + result_file, 'rb') as infile:
+        (hyper_params, stats) = pickle.load(infile)
 
     key = (hyper_params['batchsize'], hyper_params['adLR'])
 

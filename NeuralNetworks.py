@@ -262,8 +262,22 @@ class EnsembleMLP(nn.Module):
 
 if __name__ == '__main__':
 
-    vgg11 = models.vgg11(pretrained=False)
+    vgg11 = models.vgg11(pretrained=False, num_classes = 100)
     print(vgg11)
+
+    for name, paras in vgg11.named_children():
+        print(name)
+
+    # x_real = torch.randn(4, 1, 28, 28)
+    # CNet = CNNsmall(x_real.size())
+    # print(CNet)
+    #
+    #
+    # model = CNet
+    # model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+    # params = [np.prod(p.size()) for p in model_parameters]
+    #
+    # print(params)
 
     # x_real = torch.randn(4, 1, 28, 28)
     # x_ft = torch.randn(4, 2, 28, 28)
