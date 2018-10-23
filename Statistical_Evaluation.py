@@ -4,7 +4,18 @@ import copy
 import os
 
 import pickle
+import matplotlib
 from matplotlib import pyplot as plt
+
+
+# font = {'family' : 'normal',
+#         'weight' : 'bold',
+#         'size'   : 18}
+#
+# matplotlib.rc('font', **font)
+
+matplotlib.rcParams.update({'font.size': 16})
+
 
 
 def get_options(id, features, num_statistical=1):
@@ -54,7 +65,7 @@ for data in results.values():
         data[metric]['std'] = np.std(data[metric]['all'], axis=1)
 
 
-plot_bs = 200
+plot_bs = 250
 
 x = np.arange(1,61)
 
@@ -77,12 +88,18 @@ for key in [(plot_bs, 0), (plot_bs, 1)]:
     plt.plot(x, mean, color=c, label=label)
     plt.fill_between(x, mean-std, mean+std, facecolor=fc, edgecolor=ec)
 
-plt.axis([1,61,70,95])
+    plt.title('Comparison: normal and adaptive training - dataset: {}, optimizer: {}, batchsize: {}'. format(
+        'fashion-mnist', 'SGD + Nesterov', plot_bs
+    ))
+    plt.xlabel('Epoch')
+    plt.ylabel('validation accuracy')
+
+plt.axis([1,61,70,94])
 # plt.axis('scaled')
 plt.legend(loc='lower right')
-plt.show()
 
-
+figManager = plt.get_current_fig_manager()
+figManager.window.showMaximized()
 
 
 

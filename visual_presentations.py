@@ -1,9 +1,11 @@
 import numpy as np
+import matplotlib
 from matplotlib import pyplot as plt
 import pickle
 from scipy import interpolate
 
 
+matplotlib.rcParams.update({'font.size': 16})
 
 result_path = './results/ex1_2/fashion-mnist/'
 files = ('weigths_grads_norm' + '_adLR0' + '.pkl', 'weigths_grads_norm' + '_adLR1' + '.pkl')
@@ -30,6 +32,8 @@ tt = ['weights', 'gradients']
 
 fig, axes = plt.subplots(2,2)
 
+fig.suptitle('Evolution of the L2-norm of weights and gradients of network layers')
+
 for it, t in enumerate(tt):
 
     vmin, vmax = 0.0, 0.0
@@ -50,8 +54,31 @@ for it, t in enumerate(tt):
         # im = axes[i, it].imshow(data, cmap='jet', vmin=vmin, vmax=vmax)
         im = axes[i, it].imshow(data, cmap='coolwarm')
         axes[i, it].axis('tight')
+        # if i == len(res) - 1:
+        #     print(3)
+        #     axes[i, it].xlabel('test')
 
     fig.colorbar(im, ax=axes[:,it].ravel().tolist())
+
+
+axes[0,0].title.set_text('Layer weights')
+axes[0,1].title.set_text('Layer gradients')
+
+
+# left, width = .25, .5
+# bottom, height = .25, .5
+# right = left + width
+# top = bottom + height
+#
+# axes[0,0].text(left, 0.5*(bottom+top), 'right center',
+#         horizontalalignment='right',
+#         verticalalignment='center',
+#         rotation='vertical',
+#         transform=axes[0,0].transAxes)
+
+figManager = plt.get_current_fig_manager()
+figManager.window.showMaximized()
+
 plt.show()
 
 

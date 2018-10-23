@@ -268,6 +268,9 @@ if __name__ == '__main__':
     for name, paras in vgg11.named_children():
         print(name)
 
+    for name, paras in vgg11.named_parameters():
+        print(name)
+
     # x_real = torch.randn(4, 1, 28, 28)
     # CNet = CNNsmall(x_real.size())
     # print(CNet)
