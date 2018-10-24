@@ -260,16 +260,64 @@ class EnsembleMLP(nn.Module):
         return self.fc4(x)
 
 
+
+def make_conv_layer(cfg, in_channels, batch_norm=True):
+    layers = []
+    for v in cfg:
+        if v == 'M':
+            layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
+        else:
+            layers += [nn.Conv2d(in_channels=in_channels, out_channels=v, kernel_size=3, padding=1)]
+            if batch_norm:
+                layers += [nn.BatchNorm2d(num_features=v)]
+            layers += [nn.ReLU(inplace=True)]
+            in_channels = v
+    return nn.Sequential(*layers), in_channels
+
+def make_linear_layer(cfg):
+    pass
+
+
+cfg_conv = ['64', '', '']
+cfg_linear = ['', '', '']
+
+
+
+class Layers(nn.Module):
+
+    def __init__(self):
+        pass
+
+
 if __name__ == '__main__':
 
-    vgg11 = models.vgg11(pretrained=False, num_classes = 100)
-    print(vgg11)
 
-    for name, paras in vgg11.named_children():
-        print(name)
+    def printer(Net):
+        print('\nNamed children: ')
+        for name, paras in Net.named_children():
+            print(name, type(paras))
+        print('\nNamed modules: ')
+        for name, paras, in Net.named_modules():
+            print(name, type(paras))
+        print('\nNamed parameters: ')
+        for name, paras in Net.named_parameters():
+            print(name, type(paras), paras.size())
 
-    for name, paras in vgg11.named_parameters():
-        print(name)
+    def s_1(Net):
+        for name, layer in Net.named_children():
+            print(name)
+            print(layer)
+
+            if isinstance(layer, nn.Sequential):
+                print(1213)
+
+            # for name, para in layer.named_parameters():
+            #     print(name, para.size())
+
+    vgg11 = models.vgg11_bn(pretrained=False, num_classes=100)
+    # print(vgg11)
+    # printer(vgg11)
+    s_1(vgg11)
 
     # x_real = torch.randn(4, 1, 28, 28)
     # CNet = CNNsmall(x_real.size())
