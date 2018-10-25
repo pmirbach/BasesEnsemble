@@ -303,21 +303,56 @@ if __name__ == '__main__':
         for name, paras in Net.named_parameters():
             print(name, type(paras), paras.size())
 
-    def s_1(Net):
-        for name, layer in Net.named_children():
-            print(name)
-            print(layer)
+    def check_container(module):
+        return True if isinstance(module, (nn.Sequential, nn.ModuleList, nn.ModuleDict)) else False
 
-            if isinstance(layer, nn.Sequential):
-                print(1213)
+    def s_1(Net):
+        comps = []
+        for name, child in Net.named_children():
+            print(name)
+            if check_container(child):
+                print('is container')
+                for name2, child2 in child.named_children():
+                    print(name2, child2)
+                    # if check_container(child2):
+                    #     print('is container')
+                    # else:
+                    #     print('is module')
+
+            else:
+                print('ist module')
 
             # for name, para in layer.named_parameters():
             #     print(name, para.size())
 
-    vgg11 = models.vgg11_bn(pretrained=False, num_classes=100)
-    # print(vgg11)
+
+    vgg16 = models.vgg16_bn(pretrained=False, num_classes=10)
+    vgg16.classifier[0] = nn.Linear(in_features=512, out_features=4096)
+
+    vgg11 = models.vgg11_bn(pretrained=False, num_classes=10)
+    vgg11.classifier[0] = nn.Linear(in_features=512, out_features=4096)
     # printer(vgg11)
-    s_1(vgg11)
+    # s_1(vgg11)
+
+    activation_fns = ['ReLU']
+
+    layers = []
+    for name, module in vgg11.named_modules():
+        if not name or check_container(module):
+            continue
+        if isinstance(module, (nn.Conv2d, nn.Linear)):
+            layers.append([])
+        # layers[-1].append(type(module).__name__)
+        layers[-1].append(module.parameters())
+        # print(name, type(module).__name__)
+        # if not check_container(module):
+        #     print(name, module)
+
+    # print(layers)
+
+    x = torch.randn(2, 3, 32, 32)
+    y = vgg16(x)
+    print(y.size())
 
     # x_real = torch.randn(4, 1, 28, 28)
     # CNet = CNNsmall(x_real.size())

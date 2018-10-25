@@ -141,22 +141,36 @@ def get_layer_params(model, lr):
             )
     return special_params
 
+# comet_exp = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
+#                         project_name="adaptive learning rate gradient", workspace="pmirbach",
+#                         disabled=flg_comet)
 comet_exp = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
-                        project_name="adaptive learning rate gradient", workspace="pmirbach",
+                        project_name="adLR_vgg", workspace="pmirbach",
                         disabled=flg_comet)
+
 comet_exp.log_multiple_params(hyper_params)
 
-Net = CNNsmall(inp_shape=dset['train'][0][0].shape)
+###
+# Net = CNNsmall(inp_shape=dset['train'][0][0].shape)
+###
+# Net = torchvision.models.vgg11_bn(pretrained=False, num_classes=10)
+# Net.classifier[0] = nn.Linear(in_features=512, out_features=4096)
+Net = torchvision.models.vgg16_bn(pretrained=False, num_classes=10)
+Net.classifier[0] = nn.Linear(in_features=512, out_features=4096)
+
 # Net = FFsmall(inp_shape=image_datasets['train'][0][0].shape)
 Net.to(device)
 criterion = nn.CrossEntropyLoss()
-# optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True)
+
 
 params_layer = get_layer_params(Net, hyper_params['lr_initial'])
 
-optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
-scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=hyper_params['lr_step'], gamma=0.1)
-
+optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True, weight_decay=5e-4)
+scheduler = optim.lr_scheduler.StepLR(optimizer_normal, step_size=hyper_params['lr_step'], gamma=0.1)
+###
+# optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
+# scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=hyper_params['lr_step'], gamma=0.1)
+###
 
 ### Adaptive layer learning
 def adlr_1(x):
@@ -173,8 +187,11 @@ elif hyper_params['adLR'] == 2:
 
 
 
-
-Net, stats, weight_gradient_norms = training(Net, dataloaders, criterion, optimizer_layers, scheduler, device, comet_exp,
+###
+# Net, stats, weight_gradient_norms = training(Net, dataloaders, criterion, optimizer_layers, scheduler, device, comet_exp,
+#                num_epochs=hyper_params['num_epochs'], adlr_fun=adlr_fun)
+###
+Net, stats, weight_gradient_norms = training(Net, dataloaders, criterion, optimizer_normal, scheduler, device, comet_exp,
                num_epochs=hyper_params['num_epochs'], adlr_fun=adlr_fun)
 
 test_loss, test_acc = validate_model(Net, dataloaders['test'], criterion, device)
@@ -183,14 +200,14 @@ print('test - : [{:>7.4f}, {:>7.3f}%]'.format(test_loss, test_acc))
 comet_exp.log_multiple_metrics({'test_loss': test_loss, 'test_accuracy': test_acc})
 
 
-result_path = './results/ex1_2/fashion-mnist/'
-# result_file = 'bs' + str(hyper_params['batchsize']) + 'adLR' + str(hyper_params['adLR']) + '_run' + str(run) + '.pkl'
-result_file = 'weigths_grads_norm' + '_adLR' + str(hyper_params['adLR']) + '.pkl'
-
-
-outfile = open(result_path + result_file, 'wb')
-pickle.dump((hyper_params, stats, weight_gradient_norms), outfile)
-outfile.close()
+# result_path = './results/ex1_2/fashion-mnist/'
+# # result_file = 'bs' + str(hyper_params['batchsize']) + 'adLR' + str(hyper_params['adLR']) + '_run' + str(run) + '.pkl'
+# result_file = 'weigths_grads_norm' + '_adLR' + str(hyper_params['adLR']) + '.pkl'
+#
+#
+# outfile = open(result_path + result_file, 'wb')
+# pickle.dump((hyper_params, stats, weight_gradient_norms), outfile)
+# outfile.close()
 
 
 
