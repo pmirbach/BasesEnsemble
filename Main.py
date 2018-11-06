@@ -10,7 +10,7 @@ from torchvision import transforms as transforms
 
 from NeuralNetworks import CNNsmall, FFsmall, EnsembleMLP, ResNetLinear
 from Transformations import transformation_fourier, normalize_linear
-from Datasets import DatasetBase, MyStackedDataset, get_dataset, get_transforms
+from Datasets import DatasetBase, MyStackedDataset, get_dataset, get_transforms, get_normalize_stats
 from TrainValidateTest import Training, train_model, training, validate_model
 
 from itertools import product
@@ -25,6 +25,7 @@ import psutil, errno
 import pickle
 
 import argparse
+import ResNet_cifar
 
 
 flg_visualize = 0
@@ -60,7 +61,9 @@ flg_comet = not hyper_params.pop('comet')
 slurmId = hyper_params.pop('slurmId')
 
 
-run = 0
+
+### Slurm Array Handling
+
 if slurmId is not None:
 
     def get_options(id, features, num_statistical=1):
@@ -84,16 +87,15 @@ if slurmId is not None:
     for key, value in param_update.items():
         hyper_params[key] = value
 
-
-# print('id: {}, bs: {}, run: {}, adlr: {}'.format(slurmId, hyper_params['batchsize'], run, hyper_params['adLR']))
-# print(param_update)
-# print(run)
-
-
+else:
+    run = 0
 
 
 print(hyper_params)
 # print(slurmId)
+
+
+### Data dir based on host
 
 current_host = socket.gethostname()
 if current_host == 'nevada':
@@ -102,33 +104,38 @@ else:
     data_dir = './data/' + hyper_params['dataset']
 
 
-data_transforms = get_transforms(hyper_params['dataset'])
+
+train_mean, train_std, test_mean, test_std = get_normalize_stats(hyper_params['dataset'])
+train_transform = transforms.Compose([
+    transforms.RandomCrop(32, padding=4),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize(train_mean, train_std),
+])
+test_transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(test_mean, test_std),
+])
+data_transforms = {'train': train_transform, 'test': test_transform}
 dset = get_dataset(hyper_params['dataset'], data_dir, data_transforms['train'], data_transforms['test'])
 
 
-# if flg_visualize:
-#     train_dataset = dset['training']
-#     fig = plt.figure(figsize=(8,8))
-#     columns = 4
-#     rows = 5
-#     for i in range(1, columns*rows +1):
-#         img_xy = np.random.randint(len(train_dataset))
-#         img = train_dataset[img_xy][0][0,:,:]
-#         fig.add_subplot(rows, columns, i)
-#         # plt.title(labels_map[train_dataset[img_xy][1]])
-#         plt.axis('off')
-#         plt.imshow(img, cmap='gray')
-#     plt.show()
+flg_make_test = True
+if flg_make_test:
+    phases = ['train', 'validate', 'test']
 
+    train_size = int(len(dset['training']) * hyper_params['train_validate_ratio'])
+    val_size = len(dset['training']) - train_size
 
-phases = ['train', 'validate', 'test']
+    dset['train'], dset['validate'] = torch.utils.data.random_split(dset['training'], [train_size, val_size])
+
+else:
+    phases = ['train', 'validate']
 
 # TODO Loading routines for EMNIST, imageNet
 
-train_size = int(len(dset['training']) * hyper_params['train_validate_ratio'])
-val_size = len(dset['training']) - train_size
 
-dset['train'], dset['validate'] = torch.utils.data.random_split(dset['training'], [train_size, val_size])
+
 dataloaders = {x: DataLoader(dset[x], batch_size=hyper_params['batchsize'], shuffle=True) for x in phases}
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -145,7 +152,7 @@ def get_layer_params(model, lr):
 #                         project_name="adaptive learning rate gradient", workspace="pmirbach",
 #                         disabled=flg_comet)
 comet_exp = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
-                        project_name="adLR_vgg", workspace="pmirbach",
+                        project_name="adLR_resnet", workspace="pmirbach",
                         disabled=flg_comet)
 
 comet_exp.log_multiple_params(hyper_params)
@@ -155,8 +162,17 @@ comet_exp.log_multiple_params(hyper_params)
 ###
 # Net = torchvision.models.vgg11_bn(pretrained=False, num_classes=10)
 # Net.classifier[0] = nn.Linear(in_features=512, out_features=4096)
-Net = torchvision.models.vgg16_bn(pretrained=False, num_classes=10)
-Net.classifier[0] = nn.Linear(in_features=512, out_features=4096)
+
+# Net = torchvision.models.vgg16_bn(pretrained=False, num_classes=10)
+## Net.classifier[0] = nn.Linear(in_features=512, out_features=4096)
+# Net.classifier = nn.Linear(in_features=512, out_features=10)
+
+# Net = torchvision.models.vgg11(pretrained=False)
+# Net.classifier = nn.Linear(in_features=512, out_features=10)
+
+# Net = torchvision.models.resnet18(pretrained=False, num_classes=10)
+Net = ResNet_cifar.ResNet18()
+
 
 # Net = FFsmall(inp_shape=image_datasets['train'][0][0].shape)
 Net.to(device)
@@ -165,7 +181,7 @@ criterion = nn.CrossEntropyLoss()
 
 params_layer = get_layer_params(Net, hyper_params['lr_initial'])
 
-optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=True, weight_decay=5e-4)
+optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=False, weight_decay=5e-4)
 scheduler = optim.lr_scheduler.StepLR(optimizer_normal, step_size=hyper_params['lr_step'], gamma=0.1)
 ###
 # optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)

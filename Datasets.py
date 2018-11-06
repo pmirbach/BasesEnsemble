@@ -39,7 +39,9 @@ def get_dataset(dataset, data_dir, train_transform, test_transform, flg_stats=Fa
 def get_transforms(dataset):
     stats = get_normalize_stats(dataset)
     train_mean, train_std, test_mean, test_std = stats
-    return {'train': transforms.Compose([transforms.ToTensor(),
+    return {'train': transforms.Compose([transforms.RandomCrop(32, padding=4),
+                                         transforms.RandomHorizontalFlip(),
+                                         transforms.ToTensor(),
                                          transforms.Normalize(mean=train_mean, std=train_std)]),
             'test': transforms.Compose([transforms.ToTensor(),
                                         transforms.Normalize(mean=test_mean, std=test_std)])
@@ -97,6 +99,8 @@ def get_normalize_stats(dataset):
               (0.26733428587924035, 0.2564384629170881, 0.2761504713256853), \
               (0.5087964127604166, 0.48739301317401956, 0.44194221124387256), \
               (0.2682515741720806, 0.2573637364478126, 0.2770957707973048)
+    else:
+        assert ValueError('No values for given dataset!')
     return out
 
 class DatasetBase(Dataset):

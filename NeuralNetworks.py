@@ -326,33 +326,49 @@ if __name__ == '__main__':
             #     print(name, para.size())
 
 
-    vgg16 = models.vgg16_bn(pretrained=False, num_classes=10)
-    vgg16.classifier[0] = nn.Linear(in_features=512, out_features=4096)
+    # vgg16 = models.vgg16_bn(pretrained=False, num_classes=10)
+    # vgg16.classifier[0] = nn.Linear(in_features=512, out_features=4096)
+    #
+    # vgg11 = models.vgg11(pretrained=False, num_classes=10)
+    # vgg11.classifier = nn.Linear(in_features=512, out_features=10)
+    #
+    # print(vgg11)
 
-    vgg11 = models.vgg11_bn(pretrained=False, num_classes=10)
-    vgg11.classifier[0] = nn.Linear(in_features=512, out_features=4096)
     # printer(vgg11)
     # s_1(vgg11)
 
-    activation_fns = ['ReLU']
+    Net = torchvision.models.resnet18(pretrained=False, num_classes=10)
+    print(Net)
 
-    layers = []
-    for name, module in vgg11.named_modules():
-        if not name or check_container(module):
-            continue
-        if isinstance(module, (nn.Conv2d, nn.Linear)):
-            layers.append([])
-        # layers[-1].append(type(module).__name__)
-        layers[-1].append(module.parameters())
-        # print(name, type(module).__name__)
-        # if not check_container(module):
-        #     print(name, module)
 
-    # print(layers)
+    # activation_fns = ['ReLU']
+    #
+    # layers = []
+    # for name, module in vgg11.named_modules():
+    #     if not name or check_container(module):
+    #         continue
+    #     if isinstance(module, (nn.Conv2d, nn.Linear)):
+    #         layers.append([])
+    #     # layers[-1].append(type(module).__name__)
+    #     layers[-1].append(module.parameters())
+    #     # print(name, type(module).__name__)
+    #     # if not check_container(module):
+    #     #     print(name, module)
+    #
+    # # print(layers)
 
     x = torch.randn(2, 3, 32, 32)
-    y = vgg16(x)
+    y = Net(x)
     print(y.size())
+
+
+
+
+
+
+
+
+
 
     # x_real = torch.randn(4, 1, 28, 28)
     # CNet = CNNsmall(x_real.size())

@@ -82,3 +82,22 @@ figManager.window.showMaximized()
 plt.show()
 
 
+
+
+# Out of main - show some dataset images
+
+# if flg_visualize:
+#     train_dataset = dset['training']
+#     fig = plt.figure(figsize=(8,8))
+#     columns = 4
+#     rows = 5
+#     for i in range(1, columns*rows +1):
+#         img_xy = np.random.randint(len(train_dataset))
+#         img = train_dataset[img_xy][0][0,:,:]
+#         fig.add_subplot(rows, columns, i)
+#         # plt.title(labels_map[train_dataset[img_xy][1]])
+#         plt.axis('off')
+#         plt.imshow(img, cmap='gray')
+#     plt.show()
+
+
