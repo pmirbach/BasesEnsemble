@@ -45,14 +45,16 @@ parser.add_argument('--adLR', type=int, default=0, help='adaptive layer learning
 
 parser.add_argument('--num_epochs', type=int, default=60, help='number of epoch for training (default: 60)')
 
-parser.add_argument('-tvr', '--train_validate_ratio', metavar='ratio', type=float, default=0.9,
-                    help='ratio training vs. validation (default: 0.9)')
-
 parser.add_argument('--lr_initial', type=float, default=1e-3, help='initial learning rate for all layers')
 
 parser.add_argument('--lr_step', type=int, default=30, help='epochs to reduce lr to 1/10')
 
 parser.add_argument('-id', '--slurmId', type=int, help='slurm id for array jobs')
+
+parser.add_argument('--testset', action='store_true', help='False: use test set for validation')
+
+parser.add_argument('-tvr', '--train_validate_ratio', metavar='ratio', type=float, default=0.9,
+                    help='ratio training vs. validation, if testset is used (default: 0.9)')
 
 args = parser.parse_args()
 
@@ -61,6 +63,9 @@ flg_comet = not hyper_params.pop('comet')
 slurmId = hyper_params.pop('slurmId')
 
 
+comet_exp = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
+                        project_name="adLR_resnet", workspace="pmirbach",
+                        disabled=flg_comet)
 
 ### Slurm Array Handling
 
@@ -92,6 +97,9 @@ else:
 
 
 print(hyper_params)
+
+comet_exp.log_multiple_params(hyper_params)
+
 # print(slurmId)
 
 
@@ -107,8 +115,8 @@ else:
 
 train_mean, train_std, test_mean, test_std = get_normalize_stats(hyper_params['dataset'])
 train_transform = transforms.Compose([
-    transforms.RandomCrop(32, padding=4),
-    transforms.RandomHorizontalFlip(),
+    # transforms.RandomCrop(32, padding=4),
+    # transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
     transforms.Normalize(train_mean, train_std),
 ])
@@ -117,27 +125,25 @@ test_transform = transforms.Compose([
     transforms.Normalize(test_mean, test_std),
 ])
 data_transforms = {'train': train_transform, 'test': test_transform}
-dset = get_dataset(hyper_params['dataset'], data_dir, data_transforms['train'], data_transforms['test'])
-
-
-flg_make_test = True
-if flg_make_test:
-    phases = ['train', 'validate', 'test']
-
-    train_size = int(len(dset['training']) * hyper_params['train_validate_ratio'])
-    val_size = len(dset['training']) - train_size
-
-    dset['train'], dset['validate'] = torch.utils.data.random_split(dset['training'], [train_size, val_size])
-
-else:
-    phases = ['train', 'validate']
 
 # TODO Loading routines for EMNIST, imageNet
+dset = get_dataset(hyper_params['dataset'], data_dir, data_transforms['train'], data_transforms['test'])
 
-
+flg_test_as_val = True
+if flg_test_as_val:
+    phases = ['train', 'validate']
+    dset['train'], dset['validate'] = dset['training'], dset['test']
+else:
+    phases = ['train', 'validate', 'test']
+    train_size = int(len(dset['training']) * hyper_params['train_validate_ratio'])
+    val_size = len(dset['training']) - train_size
+    dset['train'], dset['validate'] = torch.utils.data.random_split(dset['training'], [train_size, val_size])
 
 dataloaders = {x: DataLoader(dset[x], batch_size=hyper_params['batchsize'], shuffle=True) for x in phases}
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+
+
 
 def get_layer_params(model, lr):
     special_params = []
@@ -147,15 +153,6 @@ def get_layer_params(model, lr):
                 {'params': module.parameters(), 'lr': lr}
             )
     return special_params
-
-# comet_exp = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
-#                         project_name="adaptive learning rate gradient", workspace="pmirbach",
-#                         disabled=flg_comet)
-comet_exp = Experiment(api_key="dI9d0Dyizku98SyNE6ODNjw3L",
-                        project_name="adLR_resnet", workspace="pmirbach",
-                        disabled=flg_comet)
-
-comet_exp.log_multiple_params(hyper_params)
 
 ###
 # Net = CNNsmall(inp_shape=dset['train'][0][0].shape)
@@ -181,12 +178,12 @@ criterion = nn.CrossEntropyLoss()
 
 params_layer = get_layer_params(Net, hyper_params['lr_initial'])
 
-optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=False, weight_decay=5e-4)
-scheduler = optim.lr_scheduler.StepLR(optimizer_normal, step_size=hyper_params['lr_step'], gamma=0.1)
-###
-# optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
-# scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=hyper_params['lr_step'], gamma=0.1)
-###
+# optimizer_normal = optim.SGD(Net.parameters(), lr=1e-3, momentum=0.9, nesterov=False, weight_decay=5e-4)
+# scheduler = optim.lr_scheduler.StepLR(optimizer_normal, step_size=hyper_params['lr_step'], gamma=0.1)
+##
+optimizer_layers = optim.SGD(params_layer, momentum=0.9, nesterov=True)
+scheduler = optim.lr_scheduler.StepLR(optimizer_layers, step_size=hyper_params['lr_step'], gamma=0.1)
+##
 
 ### Adaptive layer learning
 def adlr_1(x):
@@ -207,13 +204,14 @@ elif hyper_params['adLR'] == 2:
 # Net, stats, weight_gradient_norms = training(Net, dataloaders, criterion, optimizer_layers, scheduler, device, comet_exp,
 #                num_epochs=hyper_params['num_epochs'], adlr_fun=adlr_fun)
 ###
-Net, stats, weight_gradient_norms = training(Net, dataloaders, criterion, optimizer_normal, scheduler, device, comet_exp,
+Net, stats, weight_gradient_norms = training(Net, dataloaders, criterion, optimizer_layers, scheduler, device, comet_exp,
                num_epochs=hyper_params['num_epochs'], adlr_fun=adlr_fun)
 
-test_loss, test_acc = validate_model(Net, dataloaders['test'], criterion, device)
-print('test - : [{:>7.4f}, {:>7.3f}%]'.format(test_loss, test_acc))
+if 'test' in phases:
+    test_loss, test_acc = validate_model(Net, dataloaders['test'], criterion, device)
+    print('test - : [{:>7.4f}, {:>7.3f}%]'.format(test_loss, test_acc))
 
-comet_exp.log_multiple_metrics({'test_loss': test_loss, 'test_accuracy': test_acc})
+    comet_exp.log_multiple_metrics({'test_loss': test_loss, 'test_accuracy': test_acc})
 
 
 # result_path = './results/ex1_2/fashion-mnist/'

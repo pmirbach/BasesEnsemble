@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import ResNet_cifar
+
 import torch.optim as optim
 
 from torch.utils.data import DataLoader
@@ -337,8 +339,12 @@ if __name__ == '__main__':
     # printer(vgg11)
     # s_1(vgg11)
 
-    Net = torchvision.models.resnet18(pretrained=False, num_classes=10)
+    # Net = torchvision.models.resnet18(pretrained=False, num_classes=10)
+    # print(Net)
+    Net = ResNet_cifar.ResNet18()
     print(Net)
+
+    printer(Net)
 
 
     # activation_fns = ['ReLU']
